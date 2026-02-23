@@ -145,7 +145,7 @@ let s = generate_training(TrainingRequest {
 src/
   lib.rs                        ← crate root and re-exports
   nt_adapter.rs                 ← to_nt_table_state() JSON adapter
-  tests.rs                      ← 33 unit tests
+  tests.rs                      ← 44 unit tests
   training_engine/
     models.rs                   ← all shared types
     deck.rs                     ← Fisher-Yates shuffled deck
@@ -184,7 +184,7 @@ captured by the `branch_key` field.
 |--------|--------|-------|-------|
 | Preflop (0 cards) | T1, T5, T9, T11, T12 | 5 | 31% |
 | Flop (3 cards) | T2, T3, T7, T8, T13 | 5 | 31% |
-| Turn (4 cards) | T6, T15, T17 | 3 | 19% |
+| Turn (4 cards) | T6, T15, T16 | 3 | 19% |
 | River (5 cards) | T4, T10, T14 | 3 | 19% |
 
 With 16 topics the distribution is well-balanced across streets. To shift the
@@ -198,10 +198,11 @@ balance, weight topic selection in the request rather than picking uniformly.
 cargo test
 ```
 
-36 tests covering determinism, structural invariants, deck integrity, difficulty
+44 tests covering determinism, structural invariants, deck integrity, difficulty
 levels, entropy mode, per-topic sanity checks (board length, game type, hero
-position, bet presence), and TextStyle behaviour (non-empty text, Simple vs
-Technical produce different output, correct answer is unaffected by style).
+position, bet presence), TextStyle behaviour (non-empty text, Simple vs
+Technical produce different output, correct answer is unaffected by style),
+hand classification, and delayed c-bet turn/strength classification.
 
 ---
 

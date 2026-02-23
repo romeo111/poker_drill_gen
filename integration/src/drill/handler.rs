@@ -61,6 +61,13 @@ fn parse_topic(s: &str) -> Option<TrainingTopic> {
         "CheckRaiseSpot"           => Some(TrainingTopic::CheckRaiseSpot),
         "SemiBluffDecision"        => Some(TrainingTopic::SemiBluffDecision),
         "AntiLimperIsolation"      => Some(TrainingTopic::AntiLimperIsolation),
+        "RiverValueBet"            => Some(TrainingTopic::RiverValueBet),
+        "SqueezePlay"              => Some(TrainingTopic::SqueezePlay),
+        "BigBlindDefense"          => Some(TrainingTopic::BigBlindDefense),
+        "ThreeBetPotCbet"          => Some(TrainingTopic::ThreeBetPotCbet),
+        "RiverCallOrFold"          => Some(TrainingTopic::RiverCallOrFold),
+        "TurnProbeBet"             => Some(TrainingTopic::TurnProbeBet),
+        "DelayedCbet"              => Some(TrainingTopic::DelayedCbet),
         _ => None,
     }
 }

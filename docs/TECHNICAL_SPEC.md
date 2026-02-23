@@ -33,6 +33,7 @@
    - T13 3-Bet Pot C-Bet
    - T14 River Call or Fold
    - T15 Turn Probe Bet
+   - T16 Delayed C-Bet
 6. [Hard Invariants](#6-hard-invariants)
 7. [branch\_key Catalogue](#7-branch_key-catalogue)
 8. [Test Requirements](#8-test-requirements)
@@ -1269,6 +1270,73 @@ Medium → "Medium:ProbeSmall"
 Weak   → "Weak:Check"
 ```
 
+### T16 Delayed C-Bet (`DC-`)
+
+**Street:** Turn (4 board cards: flop + turn).
+**Hero position:** BTN (IP, preflop raiser). **Villain position:** BB.
+
+Hero raised preflop, villain called. Hero checked back the flop. Villain
+checks to hero on the turn.
+
+#### Enums
+
+```
+TurnStrength: Strong | Medium | Weak
+TurnCard:     Blank  | Scare
+```
+
+`TurnStrength` is classified from the actual dealt hero hand vs the board:
+- **Strong:** Set, two pair, overpair, top pair + good kicker (J+)
+- **Medium:** Weak top pair (low kicker), middle/bottom pair, underpair
+- **Weak:** No pair (air)
+
+`TurnCard` is classified from the turn card relative to the flop:
+- **Scare:** Overcard to flop, third flush card, or four-straight on board
+- **Blank:** Everything else
+
+#### Scenario Parameters
+
+```
+pot_bb:
+  Beginner:     6–14 BB
+  Intermediate: 4–20 BB
+  Advanced:     4–30 BB
+
+stack:
+  Beginner:     80 BB
+  Intermediate: 40–100 BB
+  Advanced:     20–150 BB
+```
+
+`small_cbet = pot × 0.33`, `medium_cbet = pot × 0.60`.
+
+#### Decision Logic
+
+```
+Strong + Any          → "C" (Medium delayed c-bet ~60%)
+Medium + Blank        → "B" (Small delayed c-bet ~33%)
+Medium + Scare        → "A" (Check — pot control)
+Weak   + Any          → "A" (Check — save chips)
+```
+
+#### Answer Options
+
+```
+A  Check                          — correct for Weak (any) and Medium + Scare
+B  Small delayed c-bet (~33% pot) — correct for Medium + Blank
+C  Medium delayed c-bet (~60% pot)— correct for Strong (any)
+```
+
+`current_bet = 0` (villain checks to hero on the turn).
+
+#### branch_key
+
+```
+"{Strength}:{TurnType}"
+
+Strong:Blank, Strong:Scare, Medium:Blank, Medium:Scare, Weak:Blank, Weak:Scare
+```
+
 ---
 
 ## 6. Hard Invariants
@@ -1308,6 +1376,7 @@ These must be true for every generated scenario, enforced by tests:
 | T13 3B Pot C-Bet | `Dry:Strong:SmallCbet`, `Wet:Strong:LargeCbet`, `Dry:Weak:Check`, `Wet:Weak:Check` |
 | T14 River Call/Fold | `Strong:SmallBet:Raise`, `Marginal:StdBet:Call`, `Weak:LargeBet:Fold` |
 | T15 Turn Probe Bet | `Strong:ProbeLarge`, `Medium:ProbeSmall`, `Weak:Check` |
+| T16 Delayed C-Bet | `Strong:Blank`, `Strong:Scare`, `Medium:Blank`, `Medium:Scare`, `Weak:Blank`, `Weak:Scare` |
 
 
 `{cat}` in T1/T9: `premium` | `strong` | `playable` | `marginal` | `trash` (lowercase)
@@ -1358,6 +1427,7 @@ A conforming implementation must pass tests in all of these groups:
 | T13 | 3 | 0 | CashGame | BTN |
 | T14 | 5 | > 0 | CashGame | BTN |
 | T15 | 4 | 0 | CashGame | BB |
+| T16 | 4 | 0 | CashGame | BTN |
 
 ---
 
