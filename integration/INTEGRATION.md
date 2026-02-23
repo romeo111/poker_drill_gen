@@ -93,7 +93,7 @@ let app = Router::new()
 
 | Param        | Values                                                                                          |
 |--------------|-------------------------------------------------------------------------------------------------|
-| `topic`      | `PreflopDecision` · `PostflopContinuationBet` · `PotOddsAndEquity` · `BluffSpot` · `ICMAndTournamentDecision` · `TurnBarrelDecision` · `CheckRaiseSpot` · `SemiBluffDecision` · `AntiLimperIsolation` |
+| `topic`      | `PreflopDecision` · `PostflopContinuationBet` · `PotOddsAndEquity` · `BluffSpot` · `ICMAndTournamentDecision` · `TurnBarrelDecision` · `CheckRaiseSpot` · `SemiBluffDecision` · `AntiLimperIsolation` · `RiverValueBet` · `SqueezePlay` · `BigBlindDefense` · `ThreeBetPotCbet` · `RiverCallOrFold` · `TurnProbeBet` · `DelayedCbet` |
 | `difficulty` | `Beginner` · `Intermediate` · `Advanced`                                                        |
 
 **Response (200):**
