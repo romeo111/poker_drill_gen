@@ -115,6 +115,29 @@ targeted practice.
 
 ---
 
+## Player Statistics & Adaptive Difficulty
+
+The library generates stateless scenarios — it does not track users. A backend layer
+records answers and manages per-user state. See **[user_statistics.md](user_statistics.md)**
+for the full specification, which covers:
+
+- **What to record** per answer (`scenario_id`, `branch_key`, `drill_difficulty`, etc.)
+- **Scoring** — 10 / 20 / 30 pts by `drill_difficulty`; wrong answers score 0
+- **Adaptive `branch_level`** — the user's current level per branch, promoted after 3 correct
+  in a row, demoted after 2 wrong in a row; independent of `drill_difficulty`
+- **Mastery tiers** — 5-tier star system (Unstarted → Learning → Developing → Competent →
+  Proficient → Mastered) based on accuracy thresholds at each difficulty level
+- **UX/UI mockups** — dashboard, topic detail, and post-answer feedback panel
+
+> **`difficulty` in `TrainingRequest` vs `branch_level` in stats**
+>
+> The `difficulty` field you pass to `generate_training()` becomes `drill_difficulty` in the
+> stats layer — it is stamped on the answer record as a historical fact. `branch_level` is
+> the user's adaptive state stored by the backend; it determines what `difficulty` to pass
+> for the user's next drill on that branch.
+
+---
+
 ## Text Style
 
 The `text_style` field on `TrainingRequest` controls the language used in the `question` string
