@@ -188,13 +188,13 @@ pub fn generate<R: Rng>(
         },
         AnswerOption {
             id: "B".to_string(),
-            text: "Call (passive)".to_string(),
+            text: "Call".to_string(),
             is_correct: correct == "B",
             explanation: call_exp,
         },
         AnswerOption {
             id: "C".to_string(),
-            text: format!("Raise to {} chips (semi-bluff, 2.5× bet)", raise_size),
+            text: format!("Raise to {} BB", raise_size / bb),
             is_correct: correct == "C",
             explanation: raise_exp,
         },

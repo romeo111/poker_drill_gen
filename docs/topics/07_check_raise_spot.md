@@ -184,3 +184,13 @@ where the board favors your range.
 - Answers: Fold, Check-call, Check-raise to 2.5× villain bet.
 - Correct: CR on (BB-favorable + Strong) or (any board + ComboDraw); Fold on (IP-
   favorable + Weak); Check-call otherwise.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [2 — Postflop C-bet](02_postflop_continuation_bet.md) | The aggressor's perspective — understand the bet before learning to raise it |
+| [8 — Semi-Bluff Decision](08_semi_bluff_decision.md) | Semi-bluff check-raises are a subset of this topic's combo-draw lines |
+| [6 — Turn Barrel Decision](06_turn_barrel_decision.md) | After a check-call, this is the decision villain faces on the turn |

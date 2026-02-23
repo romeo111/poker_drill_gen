@@ -254,13 +254,13 @@ pub fn generate<R: Rng>(
         },
         AnswerOption {
             id: "B".to_string(),
-            text: "Overlimp (call 1 BB)".to_string(),
+            text: "Call".to_string(),
             is_correct: correct == "B",
             explanation: overlimp_exp,
         },
         AnswerOption {
             id: "C".to_string(),
-            text: format!("Iso-raise to {} chips ({} BB)", iso_chips, iso_bb),
+            text: format!("Raise to {} BB", iso_bb),
             is_correct: correct == "C",
             explanation: iso_exp,
         },

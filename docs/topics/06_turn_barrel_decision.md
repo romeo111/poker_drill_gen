@@ -199,3 +199,13 @@ If you barrel with zero equity and zero blockers, you're burning money.
   spanning ≤ 4 rank units), Broadway (rank ≥ 10), or Blank.
 - Answers: Check, Bet ~50% pot, Bet ~80% pot.
 - SPR context provided in question text for advanced reasoning.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [2 — Postflop C-bet](02_postflop_continuation_bet.md) | The flop bet that precedes this turn decision |
+| [4 — Bluff Spot](04_bluff_spot.md) | River continuation after a turn check-back or missed barrel |
+| [7 — Check-Raise Spot](07_check_raise_spot.md) | Villain OOP may check-raise a turn barrel; know both sides |

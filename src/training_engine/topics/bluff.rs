@@ -94,7 +94,8 @@ pub fn generate<R: Rng>(
         "River spot. You hold {hand_str} ({bluff_type}) on {pos_str}. \
          Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). \
          Stack: {stack} chips (SPR = {spr:.1}). Villain checks to you. \
-         What do you do?"
+         Bet options: small ({small_bet} chips ~40% pot), large ({large_bet} chips ~75% pot), \
+         or shove ({shove} chips). What do you do?"
     );
 
     let check_body = if correct_id == "A" {
@@ -116,13 +117,13 @@ pub fn generate<R: Rng>(
     let answers = vec![
         AnswerOption {
             id: "A".to_string(),
-            text: "Check (give up)".to_string(),
+            text: "Check".to_string(),
             is_correct: correct_id == "A",
             explanation: format!("Checking with a {bluff_type} from {pos_str}: {check_body}"),
         },
         AnswerOption {
             id: "B".to_string(),
-            text: format!("Small bluff ({:.0}% pot = {} chips)", 40.0, small_bet),
+            text: "Bet small".to_string(),
             is_correct: correct_id == "B",
             explanation: format!(
                 "Small bluff ({small_bet} chips) with {hand_str} ({bluff_type}): \
@@ -140,7 +141,7 @@ pub fn generate<R: Rng>(
         },
         AnswerOption {
             id: "C".to_string(),
-            text: format!("Large bluff ({:.0}% pot = {} chips)", 75.0, large_bet),
+            text: "Bet large".to_string(),
             is_correct: correct_id == "C",
             explanation: format!(
                 "Large bluff ({large_bet} chips) with {hand_str} ({bluff_type}): \
@@ -159,7 +160,7 @@ pub fn generate<R: Rng>(
         },
         AnswerOption {
             id: "D".to_string(),
-            text: format!("All-in shove ({} chips)", shove),
+            text: "All-in".to_string(),
             is_correct: false,
             explanation: format!(
                 "Shoving {shove} chips with {hand_str} ({bluff_type}): \

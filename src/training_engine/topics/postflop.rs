@@ -69,7 +69,11 @@ pub fn generate<R: Rng>(
         "You raised preflop and are the aggressor. You hold {hand_str} on {pos_str}. \
          The flop comes {board_str} (a {texture_str} board). The pot is {pot} chips \
          ({pot_bb} BB). Your stack is {stack} chips ({stack_bb} BB). \
-         Villain checks to you. What is your continuation bet sizing?"
+         Villain checks to you. Bet options: small (~33% pot = {} chips), \
+         large (~75% pot = {} chips), or overbet (~125% pot = {} chips). What do you do?",
+        pot / 3,
+        pot * 3 / 4,
+        pot * 5 / 4
     );
 
     let answers = build_cbet_answers(
@@ -196,19 +200,19 @@ fn build_cbet_answers(
         },
         AnswerOption {
             id: "B".to_string(),
-            text: "Bet 33% pot".to_string(),
+            text: "Bet small".to_string(),
             is_correct: correct_id == "B",
             explanation: small_rationale,
         },
         AnswerOption {
             id: "C".to_string(),
-            text: "Bet 75% pot".to_string(),
+            text: "Bet large".to_string(),
             is_correct: correct_id == "C",
             explanation: large_rationale,
         },
         AnswerOption {
             id: "D".to_string(),
-            text: "Overbet (125% pot)".to_string(),
+            text: "Overbet".to_string(),
             is_correct: false,
             explanation: overbet_rationale,
         },

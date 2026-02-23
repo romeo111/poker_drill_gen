@@ -163,3 +163,13 @@ wrong call; a 33% pot bet gives them the right price.
   (low boards reduce late-position range advantage).
 - Answers: Check, Bet 33% pot, Bet 75% pot, Overbet 125% pot.
 - Correct answer is determined by the `(texture, range_advantage)` matrix above.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [3 — Pot Odds & Equity](03_pot_odds_and_equity.md) | Understanding why certain c-bet sizes are mathematically correct for villain to call |
+| [6 — Turn Barrel Decision](06_turn_barrel_decision.md) | The natural follow-up: what to do after the flop c-bet is called |
+| [7 — Check-Raise Spot](07_check_raise_spot.md) | Villain's counter to a c-bet when they are OOP |

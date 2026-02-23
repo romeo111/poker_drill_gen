@@ -217,3 +217,12 @@ has range advantage vs their wide limping ranges.
 - Answers: Fold, Overlimp (call), Iso-raise to N×BB.
 - Correct: Iso-raise for Premium/Strong always; Iso-raise for Playable + IP; Overlimp
   for Playable + SB; Fold for Marginal/Trash.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [1 — Preflop Decision](01_preflop_decision.md) | Open-raise spots without a limper; same hand strength framework |
+| [2 — Postflop C-bet](02_postflop_continuation_bet.md) | After isolating, you are the preflop aggressor and face c-bet decisions on the flop |

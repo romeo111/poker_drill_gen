@@ -190,3 +190,12 @@ Key blocker types:
 - Answers: Check (give up), Small bluff (40% pot), Large bluff (75% pot), All-in shove.
 - All-in shove is never the correct answer in the engine — it serves as a trap for
   overaggressive tendencies.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [6 — Turn Barrel Decision](06_turn_barrel_decision.md) | Building a bluffing story across streets; turn decisions feed into river bluff spots |
+| [8 — Semi-Bluff Decision](08_semi_bluff_decision.md) | Earlier-street version of applying pressure without a made hand |

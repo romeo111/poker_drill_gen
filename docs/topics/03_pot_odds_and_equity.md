@@ -178,3 +178,12 @@ Watch out for:
 - Correct answer (`Call` or `Fold`) is determined by `actual_equity >= required_equity`.
 - The explanation shows the exact breakeven math so players learn to perform the
   calculation themselves.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [2 — Postflop C-bet](02_postflop_continuation_bet.md) | The aggressor's perspective: bet sizes that give villain wrong pot odds |
+| [8 — Semi-Bluff Decision](08_semi_bluff_decision.md) | When a draw is strong enough to raise instead of just call |

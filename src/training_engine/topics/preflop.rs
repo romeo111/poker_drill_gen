@@ -243,7 +243,7 @@ fn build_spot<R: Rng>(
                 },
                 AnswerOption {
                     id: "B".to_string(),
-                    text: format!("Open raise to {} BB", open_size / bb),
+                    text: format!("Raise to {} BB", open_size / bb),
                     is_correct: correct == "B",
                     explanation: format!(
                         "Raising to {open_size} chips ({} BB) with {hand_str} ({cat_name}) \
@@ -253,7 +253,7 @@ fn build_spot<R: Rng>(
                 },
                 AnswerOption {
                     id: "C".to_string(),
-                    text: "Limp (call the big blind)".to_string(),
+                    text: "Call".to_string(),
                     is_correct: false,
                     explanation: format!(
                         "Limping with {hand_str} from {pos_str}: In most cash game formats \
@@ -272,8 +272,7 @@ fn build_spot<R: Rng>(
             let three_bet = raiser_size * 3;
             let q = format!(
                 "You hold {hand_str} in {pos_str} ({stack_bb} BB deep). \
-                 A player raises to {raiser_size} chips ({} BB). Action is on you. \
-                 What do you do?",
+                 A player raises to {} BB. Action is on you. What do you do?",
                 raiser_size / bb
             );
             // Single correct answer to guarantee invariant.
@@ -330,7 +329,7 @@ fn build_spot<R: Rng>(
                 },
                 AnswerOption {
                     id: "C".to_string(),
-                    text: format!("3-bet to {} chips ({} BB)", three_bet, three_bet / bb),
+                    text: format!("Raise to {} BB", three_bet / bb),
                     is_correct: correct == "C",
                     explanation: format!(
                         "3-betting to {three_bet} with {hand_str} ({cat_name}) from \
@@ -348,9 +347,8 @@ fn build_spot<R: Rng>(
             let pot = bb / 2 + bb + hero_open + three_bet_size;
             let four_bet = three_bet_size * 3;
             let q = format!(
-                "You opened to {hero_open} chips ({} BB) with {hand_str} from {pos_str} \
-                 ({stack_bb} BB deep). A player 3-bets to {three_bet_size} chips ({} BB). \
-                 Fold, call, or 4-bet?",
+                "You opened to {} BB with {hand_str} from {pos_str} \
+                 ({stack_bb} BB deep). A player re-raises to {} BB. What do you do?",
                 hero_open / bb,
                 three_bet_size / bb
             );
@@ -398,7 +396,7 @@ fn build_spot<R: Rng>(
                 },
                 AnswerOption {
                     id: "B".to_string(),
-                    text: "Call (defend flat)".to_string(),
+                    text: "Call".to_string(),
                     is_correct: correct == "B",
                     explanation: format!(
                         "Calling the 3-bet with {hand_str} ({cat_name}) from {pos_str}: \
@@ -407,7 +405,7 @@ fn build_spot<R: Rng>(
                 },
                 AnswerOption {
                     id: "C".to_string(),
-                    text: format!("4-bet to {} chips ({} BB)", four_bet, four_bet / bb),
+                    text: format!("Raise to {} BB", four_bet / bb),
                     is_correct: correct == "C",
                     explanation: format!(
                         "4-betting with {hand_str} ({cat_name}): {fourbet_body}"

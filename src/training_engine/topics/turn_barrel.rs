@@ -113,7 +113,10 @@ pub fn generate<R: Rng>(
         "You c-bet the flop and villain called. You hold {hand_str} from {pos_str}. \
          Flop: {flop_str} ({texture_str}). Turn: {turn_str} (a {turn_label}). \
          Pot is {pot} chips ({pot_bb} BB), stack {stack} chips ({stack_bb} BB). \
-         Villain checks to you. What is your turn action?"
+         Villain checks to you. Bet options: medium (~50% pot = {} chips) or \
+         large (~80% pot = {} chips). What do you do?",
+        pot / 2,
+        pot * 4 / 5
     );
 
     // Determine correct answer (single ID):
@@ -133,8 +136,8 @@ pub fn generate<R: Rng>(
         }
     };
 
-    let bet_50 = pot / 2;
-    let bet_80 = pot * 4 / 5;
+    let _bet_50 = pot / 2;
+    let _bet_80 = pot * 4 / 5;
 
     let check_exp = match turn_type {
         TurnCard::DrawComplete => format!(
@@ -218,13 +221,13 @@ pub fn generate<R: Rng>(
         },
         AnswerOption {
             id: "B".to_string(),
-            text: format!("Bet ~50% pot ({} chips)", bet_50),
+            text: "Bet medium".to_string(),
             is_correct: correct == "B",
             explanation: bet50_exp,
         },
         AnswerOption {
             id: "C".to_string(),
-            text: format!("Bet ~80% pot ({} chips)", bet_80),
+            text: "Bet large".to_string(),
             is_correct: correct == "C",
             explanation: bet80_exp,
         },

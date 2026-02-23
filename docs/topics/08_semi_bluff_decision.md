@@ -212,3 +212,13 @@ draws OOP).
 - Stack depth threshold for OESD raise: 40 BB.
 - Answers: Fold, Call (passive), Raise (semi-bluff, 2.5× bet).
 - Correct answer derived from a decision table keyed on (draw type, position, stack).
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [3 — Pot Odds & Equity](03_pot_odds_and_equity.md) | The passive baseline: when calling alone is correct |
+| [7 — Check-Raise Spot](07_check_raise_spot.md) | OOP semi-bluff raises as check-raises in the BB |
+| [4 — Bluff Spot](04_bluff_spot.md) | When the semi-bluff misses: river bluffing with a bricked draw |

@@ -157,3 +157,12 @@ advantage vs a balanced 3-bet range (~50% equity vs most ranges).
 - Table size alternates 6-max / 9-max randomly; position is sampled from the active pool.
 - The engine guarantees exactly one correct answer per scenario using a `correct: &str`
   ID matched against each `AnswerOption`.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [5 — ICM & Tournament Decision](05_icm_tournament_decision.md) | Preflop push/fold with tournament-adjusted thresholds |
+| [9 — Anti-Limper Isolation](09_anti_limper_isolation.md) | Preflop aggression against limpers; uses the same 5-category hand classification |

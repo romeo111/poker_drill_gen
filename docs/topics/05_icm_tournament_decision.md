@@ -183,3 +183,11 @@ worthwhile.
 - `should_push = hero_stack_bb <= push_threshold_bb(stage)` determines the correct answer.
 - Only two answers: `Shove all-in` or `Fold` — no limping or small-raise options.
 - Risk premium percentage is displayed in explanations to reinforce ICM awareness.
+
+---
+
+## Related Topics
+
+| Topic | Connection |
+|-------|-----------|
+| [1 — Preflop Decision](01_preflop_decision.md) | The cash-game equivalent; same hand categories, different stack/EV model |

@@ -149,7 +149,7 @@ pub fn generate<R: Rng>(
     let answers = vec![
         AnswerOption {
             id: "A".to_string(),
-            text: format!("Shove all-in ({hero_stack_bb} BB)"),
+            text: "All-in".to_string(),
             is_correct: should_push,
             explanation: push_explanation,
         },

@@ -246,13 +246,13 @@ pub fn generate<R: Rng>(
         },
         AnswerOption {
             id: "B".to_string(),
-            text: "Check-call".to_string(),
+            text: "Call".to_string(),
             is_correct: correct == "B",
             explanation: call_exp,
         },
         AnswerOption {
             id: "C".to_string(),
-            text: format!("Check-raise to {} chips (2.5× bet)", cr_size),
+            text: format!("Raise to {} BB", cr_size / bb),
             is_correct: correct == "C",
             explanation: cr_exp,
         },
