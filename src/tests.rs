@@ -28,8 +28,8 @@ fn req(topic: TrainingTopic, seed: u64) -> TrainingRequest {
     }
 }
 
-/// All nine training topics in canonical order.
-fn all_topics() -> [TrainingTopic; 9] {
+/// All sixteen training topics in canonical order.
+fn all_topics() -> [TrainingTopic; 16] {
     [
         TrainingTopic::PreflopDecision,
         TrainingTopic::PostflopContinuationBet,
@@ -40,6 +40,13 @@ fn all_topics() -> [TrainingTopic; 9] {
         TrainingTopic::CheckRaiseSpot,
         TrainingTopic::SemiBluffDecision,
         TrainingTopic::AntiLimperIsolation,
+        TrainingTopic::RiverValueBet,
+        TrainingTopic::SqueezePlay,
+        TrainingTopic::BigBlindDefense,
+        TrainingTopic::ThreeBetPotCbet,
+        TrainingTopic::RiverCallOrFold,
+        TrainingTopic::TurnProbeBet,
+        TrainingTopic::MultiwayPot,
     ]
 }
 
@@ -160,6 +167,13 @@ fn every_scenario_id_starts_with_topic_prefix() {
         (TrainingTopic::CheckRaiseSpot,           "CR-"),
         (TrainingTopic::SemiBluffDecision,        "SB-"),
         (TrainingTopic::AntiLimperIsolation,      "AL-"),
+        (TrainingTopic::RiverValueBet,            "RV-"),
+        (TrainingTopic::SqueezePlay,              "SQ-"),
+        (TrainingTopic::BigBlindDefense,          "BD-"),
+        (TrainingTopic::ThreeBetPotCbet,          "3B-"),
+        (TrainingTopic::RiverCallOrFold,          "RF-"),
+        (TrainingTopic::TurnProbeBet,             "PB-"),
+        (TrainingTopic::MultiwayPot,              "MW-"),
     ];
     for (topic, prefix) in expected_prefixes {
         let s = generate_training(req(topic, 1));
@@ -392,6 +406,141 @@ fn anti_limper_has_no_board_cards_and_is_cash() {
             s.table_setup.game_type,
             GameType::CashGame,
             "AntiLimperIsolation must be a cash game (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn river_value_bet_has_5_board_cards_and_btn_hero() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::RiverValueBet, seed));
+        assert_eq!(
+            s.table_setup.board.len(), 5,
+            "RiverValueBet must be on the river (5 board cards) (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.hero_position,
+            Position::BTN,
+            "RiverValueBet hero must be on the Button (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.current_bet, 0,
+            "RiverValueBet: villain checks to hero so current_bet must be 0 (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn squeeze_play_has_no_board_and_btn_hero() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::SqueezePlay, seed));
+        assert!(
+            s.table_setup.board.is_empty(),
+            "SqueezePlay is preflop and must have no board cards (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.hero_position,
+            Position::BTN,
+            "SqueezePlay hero must be on the Button (seed={seed})"
+        );
+        assert!(
+            s.table_setup.current_bet > 0,
+            "SqueezePlay must have a current bet (the open raise) (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn big_blind_defense_has_no_board_and_bb_hero() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::BigBlindDefense, seed));
+        assert!(
+            s.table_setup.board.is_empty(),
+            "BigBlindDefense is preflop and must have no board cards (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.hero_position,
+            Position::BB,
+            "BigBlindDefense hero must be in the Big Blind (seed={seed})"
+        );
+        assert!(
+            s.table_setup.current_bet > 0,
+            "BigBlindDefense must have a current bet (the villain raise) (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn three_bet_pot_cbet_has_3_board_cards_and_btn_hero() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::ThreeBetPotCbet, seed));
+        assert_eq!(
+            s.table_setup.board.len(), 3,
+            "ThreeBetPotCbet must be on the flop (3 board cards) (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.hero_position,
+            Position::BTN,
+            "ThreeBetPotCbet hero must be on the Button (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.current_bet, 0,
+            "ThreeBetPotCbet: villain checks so current_bet must be 0 (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn river_call_or_fold_has_5_board_cards_and_positive_bet() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::RiverCallOrFold, seed));
+        assert_eq!(
+            s.table_setup.board.len(), 5,
+            "RiverCallOrFold must be on the river (5 board cards) (seed={seed})"
+        );
+        assert!(
+            s.table_setup.current_bet > 0,
+            "RiverCallOrFold must have a villain bet to respond to (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn turn_probe_bet_has_4_board_cards_and_bb_hero() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::TurnProbeBet, seed));
+        assert_eq!(
+            s.table_setup.board.len(), 4,
+            "TurnProbeBet must have 3 flop + 1 turn = 4 board cards (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.hero_position,
+            Position::BB,
+            "TurnProbeBet hero must be in the Big Blind (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.current_bet, 0,
+            "TurnProbeBet: hero acts first so current_bet must be 0 (seed={seed})"
+        );
+    }
+}
+
+#[test]
+fn multiway_pot_has_3_board_cards_and_multiple_players() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::MultiwayPot, seed));
+        assert_eq!(
+            s.table_setup.board.len(), 3,
+            "MultiwayPot must be on the flop (3 board cards) (seed={seed})"
+        );
+        assert!(
+            s.table_setup.players.len() >= 3,
+            "MultiwayPot must have at least 3 players (hero + 2 opponents) (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.game_type,
+            GameType::CashGame,
+            "MultiwayPot must be a cash game (seed={seed})"
         );
     }
 }

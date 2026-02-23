@@ -38,7 +38,7 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `topic` | `TrainingTopic` | Which of the 9 topics to generate |
+| `topic` | `TrainingTopic` | Which of the 16 topics to generate |
 | `difficulty` | `DifficultyLevel` | `Beginner`, `Intermediate`, or `Advanced` |
 | `rng_seed` | `Option<u64>` | `Some(seed)` for deterministic output; `None` for entropy |
 
@@ -75,6 +75,13 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 | 7 | [Check-Raise Spot](topics/07_check_raise_spot.md) | Flop | `CheckRaiseSpot` | `CR-` |
 | 8 | [Semi-Bluff Decision](topics/08_semi_bluff_decision.md) | Flop | `SemiBluffDecision` | `SB-` |
 | 9 | [Anti-Limper Isolation](topics/09_anti_limper_isolation.md) | Preflop | `AntiLimperIsolation` | `AL-` |
+| 10 | [River Value Bet](topics/10_river_value_bet.md) | River | `RiverValueBet` | `RV-` |
+| 11 | [Squeeze Play](topics/11_squeeze_play.md) | Preflop | `SqueezePlay` | `SQ-` |
+| 12 | [Big Blind Defense](topics/12_big_blind_defense.md) | Preflop | `BigBlindDefense` | `BD-` |
+| 13 | [3-Bet Pot C-Bet](topics/13_three_bet_pot_cbet.md) | Flop | `ThreeBetPotCbet` | `3B-` |
+| 14 | [River Call or Fold](topics/14_river_call_or_fold.md) | River | `RiverCallOrFold` | `RF-` |
+| 15 | [Turn Probe Bet](topics/15_turn_probe_bet.md) | Turn | `TurnProbeBet` | `PB-` |
+| 16 | [Multiway Pot](topics/16_multiway_pot.md) | Flop | `MultiwayPot` | `MW-` |
 
 ---
 

@@ -18,6 +18,13 @@ fn make_scenario_id(topic: TrainingTopic, rng: &mut impl RngCore) -> String {
         TrainingTopic::CheckRaiseSpot           => "CR",
         TrainingTopic::SemiBluffDecision        => "SB",
         TrainingTopic::AntiLimperIsolation      => "AL",
+        TrainingTopic::RiverValueBet            => "RV",
+        TrainingTopic::SqueezePlay              => "SQ",
+        TrainingTopic::BigBlindDefense          => "BD",
+        TrainingTopic::ThreeBetPotCbet          => "3B",
+        TrainingTopic::RiverCallOrFold          => "RF",
+        TrainingTopic::TurnProbeBet             => "PB",
+        TrainingTopic::MultiwayPot              => "MW",
     };
     format!("{}-{:08X}", prefix, rng.next_u32())
 }
@@ -58,5 +65,26 @@ pub fn generate_training(request: TrainingRequest) -> TrainingScenario {
 
         TrainingTopic::AntiLimperIsolation =>
             topics::anti_limper::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::RiverValueBet =>
+            topics::river_value_bet::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::SqueezePlay =>
+            topics::squeeze_play::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::BigBlindDefense =>
+            topics::big_blind_defense::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::ThreeBetPotCbet =>
+            topics::three_bet_pot_cbet::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::RiverCallOrFold =>
+            topics::river_call_or_fold::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::TurnProbeBet =>
+            topics::turn_probe_bet::generate(&mut rng, request.difficulty, scenario_id),
+
+        TrainingTopic::MultiwayPot =>
+            topics::multiway_pot::generate(&mut rng, request.difficulty, scenario_id),
     }
 }

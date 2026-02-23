@@ -27,6 +27,13 @@
    - T7 Check-Raise Spot
    - T8 Semi-Bluff Decision
    - T9 Anti-Limper Isolation
+   - T10 River Value Bet
+   - T11 Squeeze Play
+   - T12 Big Blind Defense
+   - T13 3-Bet Pot C-Bet
+   - T14 River Call or Fold
+   - T15 Turn Probe Bet
+   - T16 Multiway Pot
 6. [Hard Invariants](#6-hard-invariants)
 7. [branch\_key Catalogue](#7-branch_key-catalogue)
 8. [Test Requirements](#8-test-requirements)
@@ -895,6 +902,421 @@ Trash     → "Trash"
 
 ---
 
+### T10 River Value Bet (`RV-`)
+
+**Street:** River (5 board cards).
+**Hero position:** BTN. **Villain position:** BB.
+
+#### Enum
+
+```
+HandStrength: Nuts | Strong | Medium
+```
+
+#### Scenario Parameters
+
+```
+Beginner:     pot 10–18 BB, stack 60 BB
+Intermediate: pot 8–28 BB,  stack 30–80 BB
+Advanced:     pot 6–40 BB,  stack 15–150 BB
+```
+
+Bet sizings: `small = pot × 0.33`, `large = pot × 0.75`, `overbet = pot × 1.25`.
+
+#### Decision Logic
+
+```
+Nuts   → "D" (Overbet, ~125% pot)
+Strong → "C" (Large bet, ~75% pot)
+Medium → "A" (Check)
+```
+
+#### Answer Options
+
+```
+A  Check                    — correct for Medium
+B  Bet small (~33% pot)     — always wrong
+C  Bet large (~75% pot)     — correct for Strong
+D  Overbet (~125% pot)      — correct for Nuts
+```
+
+`current_bet = 0` (villain checked to hero).
+
+#### branch_key
+
+```
+Nuts   → "Nuts:Overbet"
+Strong → "Strong:LargeBet"
+Medium → "Medium:Check"
+```
+
+---
+
+### T11 Squeeze Play (`SQ-`)
+
+**Street:** Preflop (no board cards).
+**Hero position:** BTN. **Opener position:** UTG.
+
+#### Enum
+
+```
+HoleStrength: Premium | Speculative | Weak
+```
+
+#### Scenario Parameters
+
+```
+callers:
+  Beginner:     1
+  Intermediate: 1–2
+  Advanced:     1–3
+
+open size:
+  Beginner:     3 BB
+  Intermediate: 2–4 BB
+  Advanced:     2–5 BB
+
+stack:
+  Beginner:     100 BB
+  Intermediate: 60–120 BB
+  Advanced:     25–150 BB
+```
+
+`pot_bb = open_bb + callers × open_bb + 1`
+`squeeze_bb = open_bb × 3 + callers × open_bb`
+
+#### Decision Logic
+
+```
+Premium     → "C" (Squeeze)
+Speculative → "B" (Call)
+Weak        → "A" (Fold)
+```
+
+#### Answer Options
+
+```
+A  Fold               — correct for Weak
+B  Call (open_bb)     — correct for Speculative
+C  Squeeze (~squeeze) — correct for Premium
+```
+
+`current_bet = open_bb × bb` (hero faces the open raise).
+
+#### branch_key
+
+```
+Premium     → "Premium:Squeeze"
+Speculative → "Speculative:Call"
+Weak        → "Weak:Fold"
+```
+
+---
+
+### T12 Big Blind Defense (`BD-`)
+
+**Street:** Preflop (no board cards).
+**Hero position:** BB. **Villain position:** UTG | CO | BTN (random).
+
+#### Enum
+
+```
+DefenseStrength: Strong | Playable | Weak
+```
+
+#### Scenario Parameters
+
+```
+raise_bb:
+  Beginner:     3 BB
+  Intermediate: 2–4 BB
+  Advanced:     2–5 BB
+
+stack:
+  Beginner:     100 BB
+  Intermediate: 60–120 BB
+  Advanced:     25–150 BB
+```
+
+`pot_bb = raise_bb + 1` (BB already posted)
+`three_bet_bb = raise_bb × 3 + 1`
+
+#### Decision Logic
+
+```
+Strong   → "C" (3-bet)
+Playable → "B" (Call)
+Weak     → "A" (Fold)
+```
+
+#### Answer Options
+
+```
+A  Fold                  — correct for Weak
+B  Call (raise_bb)       — correct for Playable
+C  3-bet (~three_bet_bb) — correct for Strong
+```
+
+`current_bet = raise_bb × bb`.
+
+#### branch_key
+
+```
+Strong   → "Strong:ThreeBet"
+Playable → "Playable:Call"
+Weak     → "Weak:Fold"
+```
+
+---
+
+### T13 3-Bet Pot C-Bet (`3B-`)
+
+**Street:** Flop (3 board cards).
+**Hero position:** BTN (the 3-better). **Villain position:** BB.
+
+#### Enums
+
+```
+BoardTexture: Dry | Wet
+FlopStrength: Strong | Weak
+```
+
+#### Scenario Parameters
+
+```
+pot_bb (3-bet pot is larger):
+  Beginner:     10–14 BB
+  Intermediate: 8–18 BB
+  Advanced:     6–22 BB
+
+stack:
+  Beginner:     100 BB
+  Intermediate: 50–100 BB
+  Advanced:     30–150 BB
+```
+
+`small_bet = pot × 0.33`, `large_bet = pot × 0.67`.
+
+#### Decision Logic
+
+```
+(Dry,  Strong) → "B" (Small c-bet ~33%)
+(Wet,  Strong) → "C" (Large c-bet ~67%)
+(Dry,  Weak)   → "A" (Check)
+(Wet,  Weak)   → "A" (Check)
+```
+
+#### Answer Options
+
+```
+A  Check back         — correct for (any, Weak)
+B  C-bet small (~33%) — correct for (Dry, Strong)
+C  C-bet large (~67%) — correct for (Wet, Strong)
+```
+
+`current_bet = 0` (villain checks to hero).
+
+#### branch_key
+
+```
+(Dry, Strong) → "Dry:Strong:SmallCbet"
+(Wet, Strong) → "Wet:Strong:LargeCbet"
+(Dry, Weak)   → "Dry:Weak:Check"
+(Wet, Weak)   → "Wet:Weak:Check"
+```
+
+---
+
+### T14 River Call or Fold (`RF-`)
+
+**Street:** River (5 board cards).
+**Hero position:** BTN. **Villain position:** BB (bets into hero).
+
+#### Enums
+
+```
+HandStrength: Strong | Marginal | Weak
+BetSize:      Small | Standard | Large
+```
+
+#### Scenario Parameters
+
+```
+pot_bb:
+  Beginner:     10–20 BB
+  Intermediate: 8–28 BB
+  Advanced:     6–40 BB
+
+stack:
+  Beginner:     80 BB
+  Intermediate: 30–100 BB
+  Advanced:     15–150 BB
+```
+
+Villain bet amounts:
+```
+Small    = pot × 0.33
+Standard = pot × 0.67
+Large    = pot × 1.00
+```
+
+Required equity formula:
+```
+required_equity = villain_bet / (pot + 2 × villain_bet)
+```
+
+#### Paired Scenario Selection
+
+```
+rng.gen_range(0..3):
+  0 → (Strong,   Small)    — raise for value
+  1 → (Marginal, Standard) — call
+  2 → (Weak,     Large)    — fold
+```
+
+#### Decision Logic
+
+```
+(Strong,   Small)    → "C" (Raise to ~2.5× villain_bet)
+(Marginal, Standard) → "B" (Call)
+(Weak,     Large)    → "A" (Fold)
+```
+
+#### Answer Options
+
+```
+A  Fold                  — correct for (Weak, Large)
+B  Call (villain_bet)    — correct for (Marginal, Standard)
+C  Raise to ~2.5× bet    — correct for (Strong, Small)
+```
+
+`current_bet = villain_bet`.
+
+#### branch_key
+
+```
+(Strong,   Small)    → "Strong:SmallBet:Raise"
+(Marginal, Standard) → "Marginal:StdBet:Call"
+(Weak,     Large)    → "Weak:LargeBet:Fold"
+```
+
+---
+
+### T15 Turn Probe Bet (`PB-`)
+
+**Street:** Turn (4 board cards: flop + turn).
+**Hero position:** BB (OOP). **Villain position:** BTN.
+
+#### Enum
+
+```
+ProbeStrength: Strong | Medium | Weak
+```
+
+#### Scenario Parameters
+
+```
+pot_bb:
+  Beginner:     6–14 BB
+  Intermediate: 4–20 BB
+  Advanced:     4–30 BB
+
+stack:
+  Beginner:     80 BB
+  Intermediate: 40–100 BB
+  Advanced:     20–150 BB
+```
+
+`small_probe = pot × 0.40`, `large_probe = pot × 0.70`.
+
+#### Decision Logic
+
+```
+Strong → "C" (Probe large ~70%)
+Medium → "B" (Probe small ~40%)
+Weak   → "A" (Check)
+```
+
+#### Answer Options
+
+```
+A  Check                         — correct for Weak
+B  Probe small (~40% pot)        — correct for Medium
+C  Probe large (~70% pot)        — correct for Strong
+```
+
+`current_bet = 0` (hero acts first on the turn; flop was checked through).
+
+#### branch_key
+
+```
+Strong → "Strong:ProbeLarge"
+Medium → "Medium:ProbeSmall"
+Weak   → "Weak:Check"
+```
+
+---
+
+### T16 Multiway Pot (`MW-`)
+
+**Street:** Flop (3 board cards).
+**Hero position:** CO. **Opponents:** BTN + BB (+ SB, HJ at higher opponent counts).
+
+#### Enum
+
+```
+MultiStrength: Strong | TopPair | Weak
+```
+
+#### Scenario Parameters
+
+```
+opponents:
+  Beginner:     2
+  Intermediate: 2–3
+  Advanced:     2–4
+
+pot_bb:
+  Beginner:     8–16 BB
+  Intermediate: 6–20 BB
+  Advanced:     4–30 BB
+
+stack:
+  Beginner:     100 BB
+  Intermediate: 50–120 BB
+  Advanced:     20–150 BB
+```
+
+`small_bet = pot × 0.33`, `large_bet = pot × 0.67`.
+
+#### Decision Logic
+
+```
+Strong  → "C" (Bet large ~67%)
+TopPair → "B" (Bet small ~33%)
+Weak    → "A" (Check)
+```
+
+#### Answer Options
+
+```
+A  Check               — correct for Weak
+B  Bet small (~33%)    — correct for TopPair
+C  Bet large (~67%)    — correct for Strong
+```
+
+`current_bet = 0` (hero acts first).
+
+#### branch_key
+
+```
+Strong  → "Strong:BetLarge"
+TopPair → "TopPair:BetSmall"
+Weak    → "Weak:Check"
+```
+
+---
+
 ## 6. Hard Invariants
 
 These must be true for every generated scenario, enforced by tests:
@@ -926,6 +1348,13 @@ These must be true for every generated scenario, enforced by tests:
 | T7 Check-Raise | `{BBFav\|IPFav}:{Strong\|ComboDraw\|Draw\|Weak}` |
 | T8 Semi-Bluff | `ComboDraw`, `FlushDraw`, `OESD:{Deep\|Short}`, `GutShot` |
 | T9 Anti-Limper | `Premium`, `Strong`, `Playable:{IP\|OOP}`, `Marginal`, `Trash` |
+| T10 River Value Bet | `Nuts:Overbet`, `Strong:LargeBet`, `Medium:Check` |
+| T11 Squeeze Play | `Premium:Squeeze`, `Speculative:Call`, `Weak:Fold` |
+| T12 BB Defense | `Strong:ThreeBet`, `Playable:Call`, `Weak:Fold` |
+| T13 3B Pot C-Bet | `Dry:Strong:SmallCbet`, `Wet:Strong:LargeCbet`, `Dry:Weak:Check`, `Wet:Weak:Check` |
+| T14 River Call/Fold | `Strong:SmallBet:Raise`, `Marginal:StdBet:Call`, `Weak:LargeBet:Fold` |
+| T15 Turn Probe Bet | `Strong:ProbeLarge`, `Medium:ProbeSmall`, `Weak:Check` |
+| T16 Multiway Pot | `Strong:BetLarge`, `TopPair:BetSmall`, `Weak:Check` |
 
 `{cat}` in T1/T9: `premium` | `strong` | `playable` | `marginal` | `trash` (lowercase)
 
@@ -969,3 +1398,10 @@ A conforming implementation must pass tests in all of these groups:
 | T7 | 3 | > 0 | CashGame | BB |
 | T8 | 3 | > 0 | CashGame | BTN or BB |
 | T9 | 0 | — | CashGame | CO, BTN, or SB |
+| T10 | 5 | 0 | CashGame | BTN |
+| T11 | 0 | > 0 | CashGame | BTN |
+| T12 | 0 | > 0 | CashGame | BB |
+| T13 | 3 | 0 | CashGame | BTN |
+| T14 | 5 | > 0 | CashGame | BTN |
+| T15 | 4 | 0 | CashGame | BB |
+| T16 | 3 | 0 | CashGame | CO |

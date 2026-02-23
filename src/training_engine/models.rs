@@ -137,6 +137,13 @@ pub enum TrainingTopic {
     CheckRaiseSpot,
     SemiBluffDecision,
     AntiLimperIsolation,
+    RiverValueBet,
+    SqueezePlay,
+    BigBlindDefense,
+    ThreeBetPotCbet,
+    RiverCallOrFold,
+    TurnProbeBet,
+    MultiwayPot,
 }
 
 impl fmt::Display for TrainingTopic {
@@ -151,6 +158,13 @@ impl fmt::Display for TrainingTopic {
             TrainingTopic::CheckRaiseSpot            => "Check-Raise Spot",
             TrainingTopic::SemiBluffDecision         => "Semi-Bluff Decision",
             TrainingTopic::AntiLimperIsolation       => "Anti-Limper Isolation",
+            TrainingTopic::RiverValueBet             => "River Value Bet",
+            TrainingTopic::SqueezePlay               => "Squeeze Play",
+            TrainingTopic::BigBlindDefense           => "Big Blind Defense",
+            TrainingTopic::ThreeBetPotCbet           => "3-Bet Pot C-Bet",
+            TrainingTopic::RiverCallOrFold           => "River Call or Fold",
+            TrainingTopic::TurnProbeBet              => "Turn Probe Bet",
+            TrainingTopic::MultiwayPot               => "Multiway Pot",
         };
         write!(f, "{}", s)
     }

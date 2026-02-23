@@ -75,6 +75,55 @@ fn topics() -> Vec<TopicMeta> {
             teaches: "Isolating a preflop limper with a larger raise to play heads-up \
                       in position, rather than overlimping into a multiway pot.",
         },
+        TopicMeta {
+            topic: TrainingTopic::RiverValueBet,
+            seed: 1010,
+            teaches: "Sizing river value bets by hand strength: overbet with the nuts, \
+                      large bet with a strong hand, check with a medium hand to avoid \
+                      the thin-value trap.",
+        },
+        TopicMeta {
+            topic: TrainingTopic::SqueezePlay,
+            seed: 1111,
+            teaches: "Preflop squeeze spots: 3-bet with premium hands to isolate, call \
+                      with speculative hands for implied odds, fold with weak hands that \
+                      cannot profit from a large pot.",
+        },
+        TopicMeta {
+            topic: TrainingTopic::BigBlindDefense,
+            seed: 1212,
+            teaches: "Defending the Big Blind against a single raise: 3-bet strong hands \
+                      for value, call playable hands exploiting the BB pot-odds discount, \
+                      fold off-suit trash even with the discount.",
+        },
+        TopicMeta {
+            topic: TrainingTopic::ThreeBetPotCbet,
+            seed: 1313,
+            teaches: "C-betting on the flop in a 3-bet pot: use small sizing on dry boards, \
+                      large sizing on wet boards to charge draws, and check back weak hands \
+                      given the low stack-to-pot ratio.",
+        },
+        TopicMeta {
+            topic: TrainingTopic::RiverCallOrFold,
+            seed: 1414,
+            teaches: "Facing a river bet: calculate required equity vs the bet size, raise \
+                      for value with strong hands against small bets, call marginal hands at \
+                      standard odds, and fold weak hands at large bet sizes.",
+        },
+        TopicMeta {
+            topic: TrainingTopic::TurnProbeBet,
+            seed: 1515,
+            teaches: "Probing the turn OOP after the flop is checked through: exploit \
+                      the Button's capped range with a large probe on strong hands, a small \
+                      probe on medium hands, and check with weak hands.",
+        },
+        TopicMeta {
+            topic: TrainingTopic::MultiwayPot,
+            seed: 1616,
+            teaches: "Flop decisions in multiway pots: bet large with strong hands for \
+                      protection, bet small with top pair for thin value, and check with \
+                      weak hands — bluffing requires all opponents to fold simultaneously.",
+        },
     ]
 }
 
@@ -181,7 +230,7 @@ fn main() {
     }
 
     divider('═', 66);
-    println!("  9 topics shown.  Run 'cargo run --example demo' for the");
+    println!("  16 topics shown.  Run 'cargo run --example demo' for the");
     println!("  full randomised demo.");
     divider('═', 66);
     println!();

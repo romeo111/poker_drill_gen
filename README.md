@@ -8,7 +8,7 @@ question, and a full explanation for every answer option.
 
 ## Features
 
-- **9 training topics** covering every major poker decision (preflop, flop, turn, river, ICM)
+- **16 training topics** covering every major poker decision (preflop, flop, turn, river, ICM)
 - **Deterministic** — pass a seed and always get the same scenario (great for testing and sharing)
 - **Self-contained** — no network, no database, no external poker solver
 - **Fully explained** — every wrong answer tells you *why* it's wrong
@@ -44,7 +44,7 @@ Run the built-in examples:
 
 ```bash
 cargo run --example topics   # one illustrated example per topic
-cargo run --example demo     # full randomised demo of all 9 topics
+cargo run --example demo     # full randomised demo of all 16 topics
 ```
 
 ---
@@ -62,6 +62,13 @@ cargo run --example demo     # full randomised demo of all 9 topics
 | 7 | Check-Raise Spot | Flop | Check-raise vs check-call vs fold OOP from the Big Blind |
 | 8 | Semi-Bluff Decision | Flop | Raise vs call vs fold with a drawing hand |
 | 9 | Anti-Limper Isolation | Preflop | Iso-raise vs overlimp vs fold against one or more limpers |
+| 10 | River Value Bet | River | Overbet / standard bet / check based on hand strength against a checked-to villain |
+| 11 | Squeeze Play | Preflop | Squeeze 3-bet vs call vs fold facing an open + callers |
+| 12 | Big Blind Defense | Preflop | 3-bet vs call vs fold from the BB against a single raise |
+| 13 | 3-Bet Pot C-Bet | Flop | Small vs large vs check c-bet in a 3-bet pot based on board texture |
+| 14 | River Call or Fold | River | Call vs fold vs value-raise facing a villain river bet |
+| 15 | Turn Probe Bet | Turn | Probe large vs small vs check OOP on the turn after a checked flop |
+| 16 | Multiway Pot | Flop | Bet large vs small vs check on the flop with 3+ players |
 
 ---
 
@@ -98,7 +105,7 @@ All types implement `serde::Serialize` / `serde::Deserialize`.
 src/
   lib.rs                        ← crate root and re-exports
   nt_adapter.rs                 ← to_nt_table_state() JSON adapter
-  tests.rs                      ← 27 unit tests
+  tests.rs                      ← 34 unit tests
   training_engine/
     models.rs                   ← all shared types
     deck.rs                     ← Fisher-Yates shuffled deck
@@ -106,7 +113,7 @@ src/
     generator.rs                ← generate_training() dispatcher
     topics/                     ← one module per training topic
 examples/
-  demo.rs                       ← all 9 topics, random output
+  demo.rs                       ← all 16 topics, random output
   topics.rs                     ← one illustrated example per topic
 docs/
   README.md                     ← API reference
@@ -118,32 +125,32 @@ docs/
 
 ## Scenario Space
 
-**~580 billion unique scenarios** across all 9 topics (raw card combinations × parameter variance).
+**~1.6 trillion unique scenarios** across all 16 topics (raw card combinations × parameter variance).
 
-| Topic | Dominant factor | ≈ Unique scenarios |
-|-------|----------------|-------------------|
-| T4 Bluff Spot (river) | C(52,2) × C(50,5) × 3 archetypes × SPR range | ~500B |
-| T6 Turn Barrel | C(52,2) × C(50,4) × positions × stack/pot | ~60B |
-| T2–T3, T7–T8 (flop topics) | C(52,2) × C(50,3) × parameters | ~2–5B each |
-| T1, T5, T9 (preflop topics) | C(52,2) × position/stack/stage params | ~1–6M each |
+| Topic group | Dominant factor | ≈ Unique scenarios |
+|-------------|----------------|-------------------|
+| T4, T10, T14 (river topics) | C(52,2) × C(50,5) × scenario params | ~500B each |
+| T6, T15 (turn topics) | C(52,2) × C(50,4) × positions × stack/pot | ~60B each |
+| T2, T3, T7, T8, T13, T16 (flop topics) | C(52,2) × C(50,3) × parameters | ~2–5B each |
+| T1, T5, T9, T11, T12 (preflop topics) | C(52,2) × position/stack/stage params | ~1–6M each |
 
-The river topic alone accounts for ~85% of the total due to C(50,5) ≈ 2.1M board combinations.
-From a *strategy* perspective the engine covers ~50–100 meaningfully distinct situations,
+The three river topics together account for ~90% of the total due to C(50,5) ≈ 2.1M board combinations.
+From a *strategy* perspective the engine covers ~100–150 meaningfully distinct situations,
 captured by the `branch_key` field.
 
-**Board card distribution** (assuming uniform topic selection):
+**Board card distribution** (assuming uniform topic selection across all 16 topics):
 
-| Street | Topics | Share |
-|--------|--------|-------|
-| Preflop (0 cards) | T1, T5, T9 | 33% |
-| Flop (3 cards) | T2, T3, T7, T8 | 44% |
-| Turn (4 cards) | T6 | 11% |
-| River (5 cards) | T4 | 11% |
+| Street | Topics | Count | Share |
+|--------|--------|-------|-------|
+| Preflop (0 cards) | T1, T5, T9, T11, T12 | 5 | 31% |
+| Flop (3 cards) | T2, T3, T7, T8, T13, T16 | 6 | 38% |
+| Turn (4 cards) | T6, T15 | 2 | 13% |
+| River (5 cards) | T4, T10, T14 | 3 | 19% |
 
-The engine is flop-heavy by design — 4 of 9 topics live on the flop because that is
-where the most foundational decisions occur (c-betting, pot odds, check-raising,
-semi-bluffing). To shift the balance, weight topic selection in the request rather
-than picking uniformly.
+With 16 topics the distribution is more balanced across streets. River coverage has
+grown to 19% (3 topics) and turn to 13% (2 topics), reducing the flop-heavy bias of
+the original 9-topic set. To shift the balance further, weight topic selection in the
+request rather than picking uniformly.
 
 ---
 
@@ -153,7 +160,7 @@ than picking uniformly.
 cargo test
 ```
 
-27 tests covering determinism, structural invariants, deck integrity, difficulty
+34 tests covering determinism, structural invariants, deck integrity, difficulty
 levels, entropy mode, and per-topic sanity checks (board length, game type, hero
 position, bet presence).
 
@@ -174,5 +181,5 @@ position, bet presence).
 | File | Contents |
 |------|---------|
 | [`docs/README.md`](docs/README.md) | API reference, quick-start, glossary |
-| [`docs/TECHNICAL_SPEC.md`](docs/TECHNICAL_SPEC.md) | Language-agnostic spec — data types, all 9 decision tables, invariants |
+| [`docs/TECHNICAL_SPEC.md`](docs/TECHNICAL_SPEC.md) | Language-agnostic spec — data types, all 16 decision tables, invariants |
 | [`docs/topics/`](docs/topics/) | Deep-dive per topic: poker theory, worked examples, engine notes |
