@@ -2,7 +2,7 @@
 //!
 //! Included from `lib.rs` under `#[cfg(test)]`.
 //!
-//! # Coverage (41 tests)
+//! # Coverage (44 tests)
 //!
 //! | Group | What is tested |
 //! |-------|----------------|
@@ -717,6 +717,106 @@ fn classify_hand_strong_and_playable() {
         Card { rank: Rank(3), suit: Suit::Diamonds },
     ];
     assert_eq!(classify_hand(threes), HandCategory::Marginal);
+}
+
+// ── delayed c-bet hand / turn classification ─────────────────────────────────
+
+#[test]
+fn delayed_cbet_classify_turn_strength() {
+    use crate::training_engine::models::{Card, Rank, Suit};
+    use crate::training_engine::topics::delayed_cbet::{classify_turn_strength, TurnStrength};
+
+    let c = |r: u8, s: Suit| Card { rank: Rank(r), suit: s };
+
+    // Set: pocket 8s with an 8 on the board
+    let hero = [c(8, Suit::Clubs), c(8, Suit::Diamonds)];
+    let board = [c(8, Suit::Hearts), c(12, Suit::Spades), c(5, Suit::Clubs), c(3, Suit::Diamonds)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Strong, "set");
+
+    // Two pair: A9 on a board with A and 9
+    let hero = [c(14, Suit::Hearts), c(9, Suit::Spades)];
+    let board = [c(14, Suit::Clubs), c(9, Suit::Diamonds), c(4, Suit::Hearts), c(2, Suit::Spades)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Strong, "two pair");
+
+    // Overpair: KK on a Q-high board
+    let hero = [c(13, Suit::Spades), c(13, Suit::Hearts)];
+    let board = [c(12, Suit::Clubs), c(7, Suit::Diamonds), c(3, Suit::Spades), c(5, Suit::Hearts)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Strong, "overpair");
+
+    // Top pair good kicker: AQ on a Q-high board (kicker = A = 14 >= 11)
+    let hero = [c(14, Suit::Hearts), c(12, Suit::Spades)];
+    let board = [c(12, Suit::Clubs), c(7, Suit::Diamonds), c(3, Suit::Hearts), c(2, Suit::Spades)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Strong, "top pair good kicker");
+
+    // Top pair weak kicker: Q5 on a Q-high board (kicker = 5 < 11)
+    let hero = [c(12, Suit::Hearts), c(5, Suit::Spades)];
+    let board = [c(12, Suit::Clubs), c(9, Suit::Diamonds), c(3, Suit::Hearts), c(2, Suit::Spades)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Medium, "top pair weak kicker");
+
+    // Middle pair: 9x on a Q-high board pairing the 9
+    let hero = [c(9, Suit::Hearts), c(4, Suit::Spades)];
+    let board = [c(12, Suit::Clubs), c(9, Suit::Diamonds), c(6, Suit::Hearts), c(2, Suit::Spades)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Medium, "middle pair");
+
+    // Underpair: pocket 5s on a board with all higher cards
+    let hero = [c(5, Suit::Clubs), c(5, Suit::Diamonds)];
+    let board = [c(14, Suit::Hearts), c(10, Suit::Spades), c(8, Suit::Clubs), c(6, Suit::Diamonds)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Medium, "underpair");
+
+    // Air: J8 on a board with no matches
+    let hero = [c(11, Suit::Hearts), c(8, Suit::Spades)];
+    let board = [c(14, Suit::Clubs), c(12, Suit::Diamonds), c(6, Suit::Hearts), c(3, Suit::Spades)];
+    assert_eq!(classify_turn_strength(hero, &board), TurnStrength::Weak, "air");
+}
+
+#[test]
+fn delayed_cbet_classify_turn_card() {
+    use crate::training_engine::models::{Card, Rank, Suit};
+    use crate::training_engine::topics::delayed_cbet::{classify_turn_card, TurnCard};
+
+    let c = |r: u8, s: Suit| Card { rank: Rank(r), suit: s };
+
+    // Blank: turn is below flop max, different suits, no straight
+    let flop = [c(12, Suit::Clubs), c(7, Suit::Diamonds), c(3, Suit::Hearts)];
+    let turn = c(5, Suit::Spades);
+    assert_eq!(classify_turn_card(&flop, &turn), TurnCard::Blank, "low blank");
+
+    // Scare: overcard (A on a Q-high flop)
+    let turn = c(14, Suit::Spades);
+    assert_eq!(classify_turn_card(&flop, &turn), TurnCard::Scare, "overcard");
+
+    // Scare: third card of same suit (flush possible)
+    let flop = [c(12, Suit::Hearts), c(7, Suit::Hearts), c(3, Suit::Clubs)];
+    let turn = c(5, Suit::Hearts);
+    assert_eq!(classify_turn_card(&flop, &turn), TurnCard::Scare, "flush card");
+
+    // Scare: four-straight on board (7-8-9-T)
+    let flop = [c(9, Suit::Clubs), c(7, Suit::Diamonds), c(10, Suit::Hearts)];
+    let turn = c(8, Suit::Spades);
+    assert_eq!(classify_turn_card(&flop, &turn), TurnCard::Scare, "four-straight");
+}
+
+#[test]
+fn delayed_cbet_exercises_all_branch_keys() {
+    // Across many seeds, all strength × turn-type combinations should appear.
+    let mut seen = std::collections::HashSet::new();
+    let trials = 500u64;
+    for seed in 0..trials {
+        let s = generate_training(req(TrainingTopic::DelayedCbet, seed));
+        seen.insert(s.branch_key.clone());
+    }
+    // 3 strengths × 2 turn types = 6 possible branch keys
+    let expected = [
+        "Strong:Blank", "Strong:Scare",
+        "Medium:Blank", "Medium:Scare",
+        "Weak:Blank", "Weak:Scare",
+    ];
+    for key in expected {
+        assert!(
+            seen.contains(key),
+            "Branch key '{key}' never appeared across {trials} seeds"
+        );
+    }
 }
 
 #[test]

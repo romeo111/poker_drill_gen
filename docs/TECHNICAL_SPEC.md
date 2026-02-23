@@ -191,7 +191,7 @@ Each topic module exposes exactly one function:
 generate(rng, difficulty, scenario_id, text_style) -> TrainingScenario
 ```
 
-The `text_style` parameter is the last argument in every one of the 15 topic
+The `text_style` parameter is the last argument in every one of the 16 topic
 `generate()` functions. It is passed through from `TrainingRequest.text_style`
 and used only when building the `question` string and `AnswerOption.explanation`
 strings — it has no effect on the decision logic or card dealing.

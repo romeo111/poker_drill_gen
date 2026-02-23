@@ -12,8 +12,8 @@ use crate::training_engine::{
 // Hand strength classification against the board
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy)]
-enum TurnStrength {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TurnStrength {
     Strong, // Overpair, top pair good kicker, two pair, set
     Medium, // Middle pair, weak top pair, decent underpair
     Weak,   // Missed, low pair, air
@@ -38,65 +38,61 @@ fn strength_simple(s: TurnStrength) -> &'static str {
 }
 
 /// Classify hero's hand strength against a 4-card board (flop + turn).
-fn classify_turn_strength(hero: [Card; 2], board: &[Card]) -> TurnStrength {
+///
+/// Classification order (first match wins):
+///   Strong — set, two pair, overpair, top pair + good kicker (J+)
+///   Medium — weak top pair, middle/bottom pair, any underpair
+///   Weak   — no pair (air)
+pub(crate) fn classify_turn_strength(hero: [Card; 2], board: &[Card]) -> TurnStrength {
     let h0 = hero[0].rank.0;
     let h1 = hero[1].rank.0;
     let high = h0.max(h1);
+
     let board_ranks: Vec<u8> = board.iter().map(|c| c.rank.0).collect();
     let board_max = board_ranks.iter().copied().max().unwrap_or(0);
 
     let pocket_pair = h0 == h1;
-
-    // Count board cards matching each hero card
     let matches_h0 = board_ranks.iter().filter(|&&r| r == h0).count();
     let matches_h1 = board_ranks.iter().filter(|&&r| r == h1).count();
 
-    // Set: pocket pair + one on the board
-    if pocket_pair && matches_h0 >= 1 {
-        return TurnStrength::Strong;
-    }
-
-    // Two pair: both hero cards paired on the board (non-pocket-pair hand)
-    if !pocket_pair && matches_h0 >= 1 && matches_h1 >= 1 {
-        return TurnStrength::Strong;
-    }
-
-    // Overpair: pocket pair above all board cards
-    if pocket_pair && high > board_max {
-        return TurnStrength::Strong;
-    }
-
-    // Top pair with good kicker (kicker >= Jack)
-    if !pocket_pair {
-        if high == board_max && matches_h0.max(matches_h1) >= 1 {
-            // Which card paired?
-            let kicker = if h0 == board_max { h1 } else { h0 };
-            if kicker >= 11 {
-                return TurnStrength::Strong;
-            }
-            // Weak top pair (low kicker) = medium
-            return TurnStrength::Medium;
+    if pocket_pair {
+        // Set: pocket pair + at least one matching board card
+        if matches_h0 >= 1 {
+            return TurnStrength::Strong;
         }
-    }
-
-    // Middle pair or underpair above bottom board card
-    let board_min = board_ranks.iter().copied().min().unwrap_or(0);
-    if pocket_pair && high < board_max && high > board_min {
+        // Overpair: pair above all board cards
+        if high > board_max {
+            return TurnStrength::Strong;
+        }
+        // Any other pocket pair (underpair / middle pair)
         return TurnStrength::Medium;
     }
 
-    // Non-pair hand pairing a middle board card
-    if !pocket_pair && (matches_h0 >= 1 || matches_h1 >= 1) {
-        // Paired something — but not top card (handled above)
+    // Non-pair hands — check how many hero cards paired the board
+    let paired_both = matches_h0 >= 1 && matches_h1 >= 1;
+    let paired_any  = matches_h0 >= 1 || matches_h1 >= 1;
+
+    // Two pair: both hero cards found on the board
+    if paired_both {
+        return TurnStrength::Strong;
+    }
+
+    // One card paired — which one?
+    if paired_any {
+        let paired_rank = if matches_h0 >= 1 { h0 } else { h1 };
+        if paired_rank == board_max {
+            // Top pair — kicker determines strength
+            let kicker = if paired_rank == h0 { h1 } else { h0 };
+            if kicker >= 11 {
+                return TurnStrength::Strong; // top pair + good kicker
+            }
+            return TurnStrength::Medium; // top pair + weak kicker
+        }
+        // Middle or bottom pair
         return TurnStrength::Medium;
     }
 
-    // Pocket pair below all board cards = medium (underpair)
-    if pocket_pair && high <= board_min {
-        return TurnStrength::Medium;
-    }
-
-    // Everything else: missed, no pair, air
+    // Nothing paired — air
     TurnStrength::Weak
 }
 
@@ -104,15 +100,15 @@ fn classify_turn_strength(hero: [Card; 2], board: &[Card]) -> TurnStrength {
 // Turn card classification
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy)]
-enum TurnCard {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TurnCard {
     Blank,
     Scare,
 }
 
 /// Classify the turn card relative to the flop.
 /// A scare card is an overcard to the flop or completes a flush/straight draw.
-fn classify_turn_card(flop: &[Card], turn: &Card) -> TurnCard {
+pub(crate) fn classify_turn_card(flop: &[Card], turn: &Card) -> TurnCard {
     let flop_max = flop.iter().map(|c| c.rank.0).max().unwrap_or(0);
 
     // Overcard to flop

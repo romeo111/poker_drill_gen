@@ -117,6 +117,13 @@ fn topics() -> Vec<TopicMeta> {
                       the Button's capped range with a large probe on strong hands, a small \
                       probe on medium hands, and check with weak hands.",
         },
+        TopicMeta {
+            topic: TrainingTopic::DelayedCbet,
+            seed: 1616,
+            teaches: "Delayed c-bet on the turn after checking back the flop in position: \
+                      bet medium with strong hands for value, small with medium hands on \
+                      blank turns, and check weak hands or medium hands on scare cards.",
+        },
     ]
 }
 
@@ -224,7 +231,7 @@ fn main() {
     }
 
     divider('═', 66);
-    println!("  15 topics shown.  Run 'cargo run --example demo' for the");
+    println!("  16 topics shown.  Run 'cargo run --example demo' for the");
     println!("  full randomised demo.");
     divider('═', 66);
     println!();

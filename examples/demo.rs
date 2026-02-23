@@ -1,4 +1,4 @@
-//! Full randomised demo of all 15 training topics.
+//! Full randomised demo of all 16 training topics.
 //!
 //! Run with: cargo run --example demo
 //!
@@ -12,7 +12,7 @@
 //!
 //! The game logic (correct answer, cards dealt, bet sizes) is identical in
 //! both modes.  This demo shows both styles side-by-side for BluffSpot, then
-//! runs all 15 topics in Simple mode.
+//! runs all 16 topics in Simple mode.
 
 use poker_drill_gen::{
     generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic,
@@ -64,9 +64,9 @@ fn main() {
     print_scenario(TrainingTopic::BluffSpot, 4004, TextStyle::Simple);
     print_scenario(TrainingTopic::BluffSpot, 4004, TextStyle::Technical);
 
-    // ── All 15 topics in Simple mode ─────────────────────────────────────────
+    // ── All 16 topics in Simple mode ─────────────────────────────────────────
     println!();
-    println!("══ All 15 topics (Simple mode) ══");
+    println!("══ All 16 topics (Simple mode) ══");
     println!();
 
     let topics = [
@@ -85,6 +85,7 @@ fn main() {
         (TrainingTopic::ThreeBetPotCbet,          1313),
         (TrainingTopic::RiverCallOrFold,          1414),
         (TrainingTopic::TurnProbeBet,             1515),
+        (TrainingTopic::DelayedCbet,              1616),
     ];
 
     for (topic, seed) in topics {

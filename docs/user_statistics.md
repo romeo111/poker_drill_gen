@@ -57,7 +57,7 @@ A user who answers 5 Beginner drills correctly and 3 Intermediate drills correct
 ### Lifetime Score
 
 ```
-lifetime_score = sum of topic_score across all 15 topics
+lifetime_score = sum of topic_score across all 16 topics
 ```
 
 ---
@@ -310,7 +310,7 @@ The top-level view shown after a player logs in or taps "My Stats".
 ║   Member since Jan 2026                                      ║
 ║                                                              ║
 ║   OVERALL MASTERY                                            ║
-║   [████████████████░░░░]  78%   ·  12 / 15 topics started   ║
+║   [████████████████░░░░]  78%   ·  12 / 16 topics started   ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  TOPIC PROGRESS                                [Sort ▾]      ║
@@ -370,7 +370,7 @@ The top-level view shown after a player logs in or taps "My Stats".
 - Each topic row = topic name + `branch_level` badge (user's current adaptive level) + mastery progress bar + pts + accuracy fraction.
 - Rows are sorted by mastery descending by default; user can toggle sort.
 - "Not started" topics show an empty bar and greyed text.
-- The overall mastery bar at the top is the average of all 15 topic mastery values.
+- The overall mastery bar at the top is the average of all 16 topic mastery values.
 - "Start Next Drill" routes to the lowest-mastery topic that is not yet mastered.
 
 ---
@@ -486,7 +486,7 @@ Wrong answer variant:
 
 | Component | Used on | Data source |
 |---|---|---|
-| Overall mastery bar | Dashboard header | avg of all 15 `topic_mastery` values |
+| Overall mastery bar | Dashboard header | avg of all 16 `topic_mastery` values |
 | Per-topic mastery bar | Dashboard row, Topic detail | mastery tier (0–5) → bar % (0/20/40/60/80/100) |
 | Per-branch mastery bar | Topic detail — Branches | derived from `BranchStats` accuracy + current difficulty |
 | branch_level badge | Dashboard row, Topic detail, Feedback panel | `BranchStats.branch_level` — the user's adaptive state |
