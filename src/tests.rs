@@ -28,8 +28,8 @@ fn req(topic: TrainingTopic, seed: u64) -> TrainingRequest {
     }
 }
 
-/// All sixteen training topics in canonical order.
-fn all_topics() -> [TrainingTopic; 16] {
+/// All fifteen training topics in canonical order.
+fn all_topics() -> [TrainingTopic; 15] {
     [
         TrainingTopic::PreflopDecision,
         TrainingTopic::PostflopContinuationBet,
@@ -46,7 +46,6 @@ fn all_topics() -> [TrainingTopic; 16] {
         TrainingTopic::ThreeBetPotCbet,
         TrainingTopic::RiverCallOrFold,
         TrainingTopic::TurnProbeBet,
-        TrainingTopic::MultiwayPot,
     ]
 }
 
@@ -173,7 +172,6 @@ fn every_scenario_id_starts_with_topic_prefix() {
         (TrainingTopic::ThreeBetPotCbet,          "3B-"),
         (TrainingTopic::RiverCallOrFold,          "RF-"),
         (TrainingTopic::TurnProbeBet,             "PB-"),
-        (TrainingTopic::MultiwayPot,              "MW-"),
     ];
     for (topic, prefix) in expected_prefixes {
         let s = generate_training(req(topic, 1));
@@ -525,22 +523,3 @@ fn turn_probe_bet_has_4_board_cards_and_bb_hero() {
     }
 }
 
-#[test]
-fn multiway_pot_has_3_board_cards_and_multiple_players() {
-    for seed in SEEDS {
-        let s = generate_training(req(TrainingTopic::MultiwayPot, seed));
-        assert_eq!(
-            s.table_setup.board.len(), 3,
-            "MultiwayPot must be on the flop (3 board cards) (seed={seed})"
-        );
-        assert!(
-            s.table_setup.players.len() >= 3,
-            "MultiwayPot must have at least 3 players (hero + 2 opponents) (seed={seed})"
-        );
-        assert_eq!(
-            s.table_setup.game_type,
-            GameType::CashGame,
-            "MultiwayPot must be a cash game (seed={seed})"
-        );
-    }
-}

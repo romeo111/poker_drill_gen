@@ -117,13 +117,6 @@ fn topics() -> Vec<TopicMeta> {
                       the Button's capped range with a large probe on strong hands, a small \
                       probe on medium hands, and check with weak hands.",
         },
-        TopicMeta {
-            topic: TrainingTopic::MultiwayPot,
-            seed: 1616,
-            teaches: "Flop decisions in multiway pots: bet large with strong hands for \
-                      protection, bet small with top pair for thin value, and check with \
-                      weak hands — bluffing requires all opponents to fold simultaneously.",
-        },
     ]
 }
 
@@ -230,7 +223,7 @@ fn main() {
     }
 
     divider('═', 66);
-    println!("  16 topics shown.  Run 'cargo run --example demo' for the");
+    println!("  15 topics shown.  Run 'cargo run --example demo' for the");
     println!("  full randomised demo.");
     divider('═', 66);
     println!();

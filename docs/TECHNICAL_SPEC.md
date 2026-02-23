@@ -33,7 +33,6 @@
    - T13 3-Bet Pot C-Bet
    - T14 River Call or Fold
    - T15 Turn Probe Bet
-   - T16 Multiway Pot
 6. [Hard Invariants](#6-hard-invariants)
 7. [branch\_key Catalogue](#7-branch_key-catalogue)
 8. [Test Requirements](#8-test-requirements)
@@ -1257,66 +1256,6 @@ Weak   → "Weak:Check"
 
 ---
 
-### T16 Multiway Pot (`MW-`)
-
-**Street:** Flop (3 board cards).
-**Hero position:** CO. **Opponents:** BTN + BB (+ SB, HJ at higher opponent counts).
-
-#### Enum
-
-```
-MultiStrength: Strong | TopPair | Weak
-```
-
-#### Scenario Parameters
-
-```
-opponents:
-  Beginner:     2
-  Intermediate: 2–3
-  Advanced:     2–4
-
-pot_bb:
-  Beginner:     8–16 BB
-  Intermediate: 6–20 BB
-  Advanced:     4–30 BB
-
-stack:
-  Beginner:     100 BB
-  Intermediate: 50–120 BB
-  Advanced:     20–150 BB
-```
-
-`small_bet = pot × 0.33`, `large_bet = pot × 0.67`.
-
-#### Decision Logic
-
-```
-Strong  → "C" (Bet large ~67%)
-TopPair → "B" (Bet small ~33%)
-Weak    → "A" (Check)
-```
-
-#### Answer Options
-
-```
-A  Check               — correct for Weak
-B  Bet small (~33%)    — correct for TopPair
-C  Bet large (~67%)    — correct for Strong
-```
-
-`current_bet = 0` (hero acts first).
-
-#### branch_key
-
-```
-Strong  → "Strong:BetLarge"
-TopPair → "TopPair:BetSmall"
-Weak    → "Weak:Check"
-```
-
----
-
 ## 6. Hard Invariants
 
 These must be true for every generated scenario, enforced by tests:
@@ -1354,7 +1293,7 @@ These must be true for every generated scenario, enforced by tests:
 | T13 3B Pot C-Bet | `Dry:Strong:SmallCbet`, `Wet:Strong:LargeCbet`, `Dry:Weak:Check`, `Wet:Weak:Check` |
 | T14 River Call/Fold | `Strong:SmallBet:Raise`, `Marginal:StdBet:Call`, `Weak:LargeBet:Fold` |
 | T15 Turn Probe Bet | `Strong:ProbeLarge`, `Medium:ProbeSmall`, `Weak:Check` |
-| T16 Multiway Pot | `Strong:BetLarge`, `TopPair:BetSmall`, `Weak:Check` |
+
 
 `{cat}` in T1/T9: `premium` | `strong` | `playable` | `marginal` | `trash` (lowercase)
 
@@ -1404,4 +1343,4 @@ A conforming implementation must pass tests in all of these groups:
 | T13 | 3 | 0 | CashGame | BTN |
 | T14 | 5 | > 0 | CashGame | BTN |
 | T15 | 4 | 0 | CashGame | BB |
-| T16 | 3 | 0 | CashGame | CO |
+

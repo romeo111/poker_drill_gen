@@ -8,7 +8,7 @@ question, and a full explanation for every answer option.
 
 ## Features
 
-- **16 training topics** covering every major poker decision (preflop, flop, turn, river, ICM)
+- **15 training topics** covering every major poker decision (preflop, flop, turn, river, ICM)
 - **Deterministic** — pass a seed and always get the same scenario (great for testing and sharing)
 - **Self-contained** — no network, no database, no external poker solver
 - **Fully explained** — every wrong answer tells you *why* it's wrong
@@ -44,7 +44,7 @@ Run the built-in examples:
 
 ```bash
 cargo run --example topics   # one illustrated example per topic
-cargo run --example demo     # full randomised demo of all 16 topics
+cargo run --example demo     # full randomised demo of all 15 topics
 ```
 
 ---
@@ -68,7 +68,7 @@ cargo run --example demo     # full randomised demo of all 16 topics
 | 13 | 3-Bet Pot C-Bet | Flop | Small vs large vs check c-bet in a 3-bet pot based on board texture |
 | 14 | River Call or Fold | River | Call vs fold vs value-raise facing a villain river bet |
 | 15 | Turn Probe Bet | Turn | Probe large vs small vs check OOP on the turn after a checked flop |
-| 16 | Multiway Pot | Flop | Bet large vs small vs check on the flop with 3+ players |
+
 
 ---
 
@@ -105,7 +105,7 @@ All types implement `serde::Serialize` / `serde::Deserialize`.
 src/
   lib.rs                        ← crate root and re-exports
   nt_adapter.rs                 ← to_nt_table_state() JSON adapter
-  tests.rs                      ← 34 unit tests
+  tests.rs                      ← 33 unit tests
   training_engine/
     models.rs                   ← all shared types
     deck.rs                     ← Fisher-Yates shuffled deck
@@ -113,7 +113,7 @@ src/
     generator.rs                ← generate_training() dispatcher
     topics/                     ← one module per training topic
 examples/
-  demo.rs                       ← all 16 topics, random output
+  demo.rs                       ← all 15 topics, random output
   topics.rs                     ← one illustrated example per topic
 docs/
   README.md                     ← API reference
@@ -125,31 +125,30 @@ docs/
 
 ## Scenario Space
 
-**~1.6 trillion unique scenarios** across all 16 topics (raw card combinations × parameter variance).
+**~1.6 trillion unique scenarios** across all 15 topics (raw card combinations × parameter variance).
 
 | Topic group | Dominant factor | ≈ Unique scenarios |
 |-------------|----------------|-------------------|
 | T4, T10, T14 (river topics) | C(52,2) × C(50,5) × scenario params | ~500B each |
 | T6, T15 (turn topics) | C(52,2) × C(50,4) × positions × stack/pot | ~60B each |
-| T2, T3, T7, T8, T13, T16 (flop topics) | C(52,2) × C(50,3) × parameters | ~2–5B each |
+| T2, T3, T7, T8, T13 (flop topics) | C(52,2) × C(50,3) × parameters | ~2–5B each |
 | T1, T5, T9, T11, T12 (preflop topics) | C(52,2) × position/stack/stage params | ~1–6M each |
 
 The three river topics together account for ~90% of the total due to C(50,5) ≈ 2.1M board combinations.
-From a *strategy* perspective the engine covers ~100–150 meaningfully distinct situations,
+From a *strategy* perspective the engine covers ~100 meaningfully distinct situations,
 captured by the `branch_key` field.
 
-**Board card distribution** (assuming uniform topic selection across all 16 topics):
+**Board card distribution** (assuming uniform topic selection across all 15 topics):
 
 | Street | Topics | Count | Share |
 |--------|--------|-------|-------|
-| Preflop (0 cards) | T1, T5, T9, T11, T12 | 5 | 31% |
-| Flop (3 cards) | T2, T3, T7, T8, T13, T16 | 6 | 38% |
+| Preflop (0 cards) | T1, T5, T9, T11, T12 | 5 | 33% |
+| Flop (3 cards) | T2, T3, T7, T8, T13 | 5 | 33% |
 | Turn (4 cards) | T6, T15 | 2 | 13% |
-| River (5 cards) | T4, T10, T14 | 3 | 19% |
+| River (5 cards) | T4, T10, T14 | 3 | 20% |
 
-With 16 topics the distribution is more balanced across streets. River coverage has
-grown to 19% (3 topics) and turn to 13% (2 topics), reducing the flop-heavy bias of
-the original 9-topic set. To shift the balance further, weight topic selection in the
+With 15 topics the distribution is balanced: preflop, flop, and river each get equal
+or near-equal representation. To shift the balance, weight topic selection in the
 request rather than picking uniformly.
 
 ---
@@ -160,7 +159,7 @@ request rather than picking uniformly.
 cargo test
 ```
 
-34 tests covering determinism, structural invariants, deck integrity, difficulty
+33 tests covering determinism, structural invariants, deck integrity, difficulty
 levels, entropy mode, and per-topic sanity checks (board length, game type, hero
 position, bet presence).
 
@@ -181,5 +180,5 @@ position, bet presence).
 | File | Contents |
 |------|---------|
 | [`docs/README.md`](docs/README.md) | API reference, quick-start, glossary |
-| [`docs/TECHNICAL_SPEC.md`](docs/TECHNICAL_SPEC.md) | Language-agnostic spec — data types, all 16 decision tables, invariants |
+| [`docs/TECHNICAL_SPEC.md`](docs/TECHNICAL_SPEC.md) | Language-agnostic spec — data types, all 15 decision tables, invariants |
 | [`docs/topics/`](docs/topics/) | Deep-dive per topic: poker theory, worked examples, engine notes |
