@@ -39,7 +39,7 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `topic` | `TrainingTopic` | Which of the 15 topics to generate |
+| `topic` | `TrainingTopic` | Which of the 16 topics to generate |
 | `difficulty` | `DifficultyLevel` | `Beginner`, `Intermediate`, or `Advanced` |
 | `rng_seed` | `Option<u64>` | `Some(seed)` for deterministic output; `None` for entropy |
 | `text_style` | `TextStyle` | `Simple` (plain English, default) or `Technical` (poker jargon) |
@@ -83,6 +83,7 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 | 13 | [3-Bet Pot C-Bet](topics/13_three_bet_pot_cbet.md) | Flop | `ThreeBetPotCbet` | `3B-` |
 | 14 | [River Call or Fold](topics/14_river_call_or_fold.md) | River | `RiverCallOrFold` | `RF-` |
 | 15 | [Turn Probe Bet](topics/15_turn_probe_bet.md) | Turn | `TurnProbeBet` | `PB-` |
+| 17 | [Delayed C-Bet](topics/17_delayed_cbet.md) | Turn | `DelayedCbet` | `DC-` |
 
 
 ---
