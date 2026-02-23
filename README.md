@@ -116,6 +116,37 @@ docs/
 
 ---
 
+## Scenario Space
+
+**~580 billion unique scenarios** across all 9 topics (raw card combinations × parameter variance).
+
+| Topic | Dominant factor | ≈ Unique scenarios |
+|-------|----------------|-------------------|
+| T4 Bluff Spot (river) | C(52,2) × C(50,5) × 3 archetypes × SPR range | ~500B |
+| T6 Turn Barrel | C(52,2) × C(50,4) × positions × stack/pot | ~60B |
+| T2–T3, T7–T8 (flop topics) | C(52,2) × C(50,3) × parameters | ~2–5B each |
+| T1, T5, T9 (preflop topics) | C(52,2) × position/stack/stage params | ~1–6M each |
+
+The river topic alone accounts for ~85% of the total due to C(50,5) ≈ 2.1M board combinations.
+From a *strategy* perspective the engine covers ~50–100 meaningfully distinct situations,
+captured by the `branch_key` field.
+
+**Board card distribution** (assuming uniform topic selection):
+
+| Street | Topics | Share |
+|--------|--------|-------|
+| Preflop (0 cards) | T1, T5, T9 | 33% |
+| Flop (3 cards) | T2, T3, T7, T8 | 44% |
+| Turn (4 cards) | T6 | 11% |
+| River (5 cards) | T4 | 11% |
+
+The engine is flop-heavy by design — 4 of 9 topics live on the flop because that is
+where the most foundational decisions occur (c-betting, pot odds, check-raising,
+semi-bluffing). To shift the balance, weight topic selection in the request rather
+than picking uniformly.
+
+---
+
 ## Tests
 
 ```bash
