@@ -1,4 +1,4 @@
-# Topic 17 — Delayed C-Bet
+# Topic 16 — Delayed C-Bet
 
 **Enum variant:** `TrainingTopic::DelayedCbet`
 **Scenario ID prefix:** `DC-`

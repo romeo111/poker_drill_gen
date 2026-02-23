@@ -57,7 +57,7 @@ examples/
   demo.rs
 docs/
   README.md
-  topics/  ← one .md per topic (01_preflop_decision.md … 17_delayed_cbet.md)
+  topics/  ← one .md per topic (01_preflop_decision.md … 16_delayed_cbet.md)
 ```
 
 ---
@@ -90,7 +90,7 @@ docs/
 | 13 | `ThreeBetPotCbet` | `3B-` | Flop | C-bet sizing in 3-bet pots |
 | 14 | `RiverCallOrFold` | `RF-` | River | Call vs fold vs raise facing river bet |
 | 15 | `TurnProbeBet` | `PB-` | Turn | Probe bet sizing OOP after check-through |
-| 17 | `DelayedCbet` | `DC-` | Turn | Delayed c-bet sizing IP after flop check-back |
+| 16 | `DelayedCbet` | `DC-` | Turn | Delayed c-bet sizing IP after flop check-back |
 
 ---
 

@@ -70,7 +70,7 @@ cargo run --example demo     # full randomised demo of all 16 topics
 | 13 | 3-Bet Pot C-Bet | Flop | Small vs large vs check c-bet in a 3-bet pot based on board texture |
 | 14 | River Call or Fold | River | Call vs fold vs value-raise facing a villain river bet |
 | 15 | Turn Probe Bet | Turn | Probe large vs small vs check OOP on the turn after a checked flop |
-| 17 | Delayed C-Bet | Turn | Delayed c-bet sizing IP on the turn after checking back the flop |
+| 16 | Delayed C-Bet | Turn | Delayed c-bet sizing IP on the turn after checking back the flop |
 
 
 ---
@@ -170,7 +170,7 @@ docs/
 | Topic group | Dominant factor | ≈ Unique scenarios |
 |-------------|----------------|-------------------|
 | T4, T10, T14 (river topics) | C(52,2) × C(50,5) × scenario params | ~500B each |
-| T6, T15, T17 (turn topics) | C(52,2) × C(50,4) × positions × stack/pot | ~60B each |
+| T6, T15, T16 (turn topics) | C(52,2) × C(50,4) × positions × stack/pot | ~60B each |
 | T2, T3, T7, T8, T13 (flop topics) | C(52,2) × C(50,3) × parameters | ~2–5B each |
 | T1, T5, T9, T11, T12 (preflop topics) | C(52,2) × position/stack/stage params | ~1–6M each |
 

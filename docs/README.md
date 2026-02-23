@@ -83,7 +83,7 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 | 13 | [3-Bet Pot C-Bet](topics/13_three_bet_pot_cbet.md) | Flop | `ThreeBetPotCbet` | `3B-` |
 | 14 | [River Call or Fold](topics/14_river_call_or_fold.md) | River | `RiverCallOrFold` | `RF-` |
 | 15 | [Turn Probe Bet](topics/15_turn_probe_bet.md) | Turn | `TurnProbeBet` | `PB-` |
-| 17 | [Delayed C-Bet](topics/17_delayed_cbet.md) | Turn | `DelayedCbet` | `DC-` |
+| 16 | [Delayed C-Bet](topics/16_delayed_cbet.md) | Turn | `DelayedCbet` | `DC-` |
 
 
 ---
