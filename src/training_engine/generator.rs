@@ -36,51 +36,52 @@ pub fn generate_training(request: TrainingRequest) -> TrainingScenario {
     };
 
     let scenario_id = make_scenario_id(request.topic, &mut rng);
+    let ts = request.text_style;
 
     match request.topic {
         TrainingTopic::PreflopDecision =>
-            topics::preflop::generate(&mut rng, request.difficulty, scenario_id),
+            topics::preflop::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::PostflopContinuationBet =>
-            topics::postflop::generate(&mut rng, request.difficulty, scenario_id),
+            topics::postflop::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::PotOddsAndEquity =>
-            topics::pot_odds::generate(&mut rng, request.difficulty, scenario_id),
+            topics::pot_odds::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::BluffSpot =>
-            topics::bluff::generate(&mut rng, request.difficulty, scenario_id),
+            topics::bluff::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::ICMAndTournamentDecision =>
-            topics::icm::generate(&mut rng, request.difficulty, scenario_id),
+            topics::icm::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::TurnBarrelDecision =>
-            topics::turn_barrel::generate(&mut rng, request.difficulty, scenario_id),
+            topics::turn_barrel::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::CheckRaiseSpot =>
-            topics::check_raise::generate(&mut rng, request.difficulty, scenario_id),
+            topics::check_raise::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::SemiBluffDecision =>
-            topics::semi_bluff::generate(&mut rng, request.difficulty, scenario_id),
+            topics::semi_bluff::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::AntiLimperIsolation =>
-            topics::anti_limper::generate(&mut rng, request.difficulty, scenario_id),
+            topics::anti_limper::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::RiverValueBet =>
-            topics::river_value_bet::generate(&mut rng, request.difficulty, scenario_id),
+            topics::river_value_bet::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::SqueezePlay =>
-            topics::squeeze_play::generate(&mut rng, request.difficulty, scenario_id),
+            topics::squeeze_play::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::BigBlindDefense =>
-            topics::big_blind_defense::generate(&mut rng, request.difficulty, scenario_id),
+            topics::big_blind_defense::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::ThreeBetPotCbet =>
-            topics::three_bet_pot_cbet::generate(&mut rng, request.difficulty, scenario_id),
+            topics::three_bet_pot_cbet::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::RiverCallOrFold =>
-            topics::river_call_or_fold::generate(&mut rng, request.difficulty, scenario_id),
+            topics::river_call_or_fold::generate(&mut rng, request.difficulty, scenario_id, ts),
 
         TrainingTopic::TurnProbeBet =>
-            topics::turn_probe_bet::generate(&mut rng, request.difficulty, scenario_id),
+            topics::turn_probe_bet::generate(&mut rng, request.difficulty, scenario_id, ts),
     }
 }

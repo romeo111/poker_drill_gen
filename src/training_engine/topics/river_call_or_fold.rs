@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -43,10 +43,27 @@ impl std::fmt::Display for BetSize {
     }
 }
 
+fn hand_strength_simple(hs: HandStrength) -> &'static str {
+    match hs {
+        HandStrength::Strong   => "strong hand",
+        HandStrength::Marginal => "medium hand",
+        HandStrength::Weak     => "weak hand",
+    }
+}
+
+fn bet_size_simple(bs: BetSize) -> &'static str {
+    match bs {
+        BetSize::Small    => "small bet",
+        BetSize::Standard => "normal-sized bet",
+        BetSize::Large    => "large bet",
+    }
+}
+
 pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -104,78 +121,121 @@ pub fn generate<R: Rng>(
     let hand_str  = format!("{}{}", hero_hand[0], hero_hand[1]);
     let board_str = board.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
 
-    let question = format!(
-        "River call or fold. You hold {hand_str} ({strength}) on the Button. \
-         Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). Stack: {stack} chips. \
-         Villain bets {villain_bet} chips ({bet_size}) into you. \
-         You need ~{required_equity_pct}% equity to break even on a call. \
-         What do you do?"
-    );
+    let strength_simple = hand_strength_simple(strength);
+    let bet_size_simple_label = bet_size_simple(bet_size);
+
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "Last card. You have {hand_str} ({strength_simple}) on the Button. \
+             Board: {board_str}. Pot: {pot} chips. Stack: {stack} chips. \
+             Your opponent bets {villain_bet} chips ({bet_size_simple_label}) into you. What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "River call or fold. You hold {hand_str} ({strength}) on the Button. \
+             Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). Stack: {stack} chips. \
+             Villain bets {villain_bet} chips ({bet_size}) into you. \
+             You need ~{required_equity_pct}% equity to break even on a call. \
+             What do you do?"
+        ),
+    };
 
     let answers = vec![
         AnswerOption {
             id: "A".to_string(),
             text: "Fold".to_string(),
             is_correct: correct == "A",
-            explanation: match (strength, bet_size) {
-                (HandStrength::Weak, BetSize::Large) => format!(
-                    "Correct. Folding a {strength} against a {bet_size} bet is right. \
-                     You need ~{required_equity_pct}% equity to break even, but a {strength} \
-                     is unlikely to have that against a polarised river betting range. \
-                     Villain's large bet signals a strong hand or bluff — your weak hand \
-                     loses to the former and gains nothing against the latter. Fold."
-                ),
-                _ => format!(
-                    "Folding here surrenders too much value. Against a {bet_size} bet you \
-                     need only ~{required_equity_pct}% equity — your {strength} exceeds that. \
-                     Either call to realise your equity, or raise to extract more value."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match (strength, bet_size) {
+                    (HandStrength::Weak, BetSize::Large) => format!(
+                        "Correct — fold. Your hand is weak and your opponent made a large bet. You don't win often enough here to make calling worth it."
+                    ),
+                    _ => format!(
+                        "Folding here gives up too easily — you have enough of a hand to call."
+                    ),
+                },
+                TextStyle::Technical => match (strength, bet_size) {
+                    (HandStrength::Weak, BetSize::Large) => format!(
+                        "Correct. Folding a {strength} against a {bet_size} bet is right. \
+                         You need ~{required_equity_pct}% equity to break even, but a {strength} \
+                         is unlikely to have that against a polarised river betting range. \
+                         Villain's large bet signals a strong hand or bluff — your weak hand \
+                         loses to the former and gains nothing against the latter. Fold."
+                    ),
+                    _ => format!(
+                        "Folding here surrenders too much value. Against a {bet_size} bet you \
+                         need only ~{required_equity_pct}% equity — your {strength} exceeds that. \
+                         Either call to realise your equity, or raise to extract more value."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "B".to_string(),
             text: format!("Call ({villain_bet} chips)"),
             is_correct: correct == "B",
-            explanation: match (strength, bet_size) {
-                (HandStrength::Marginal, BetSize::Standard) => format!(
-                    "Correct. Calling {villain_bet} chips against a {bet_size} bet with a \
-                     {strength} is the right play. You need ~{required_equity_pct}% equity \
-                     and your hand is likely ahead of villain's bluffing frequency at this \
-                     sizing. Folding is too tight; raising turns a thin call into an \
-                     aggressive bluff-raise that few worse hands will call."
-                ),
-                (HandStrength::Strong, BetSize::Small) => format!(
-                    "Calling with a {strength} against a {bet_size} bet is fine but leaves \
-                     value behind. Villain is likely betting thin for value with hands you \
-                     beat — a raise to ~{raise_size} chips extracts more EV and is credible \
-                     given your strong range on the river."
-                ),
-                _ => format!(
-                    "Calling {villain_bet} chips with a {strength} against a {bet_size} bet \
-                     is -EV. You need ~{required_equity_pct}% equity and your hand is unlikely \
-                     to have it against a polarised river bet at this sizing. Fold."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match (strength, bet_size) {
+                    (HandStrength::Marginal, BetSize::Standard) => format!(
+                        "Correct — call. Your hand wins often enough at this price to make calling worthwhile."
+                    ),
+                    (HandStrength::Strong, BetSize::Small) => format!(
+                        "Just calling here misses a chance to win more — raise with this strong hand!"
+                    ),
+                    _ => format!(
+                        "Just calling here misses a chance to win more — raise with this strong hand!"
+                    ),
+                },
+                TextStyle::Technical => match (strength, bet_size) {
+                    (HandStrength::Marginal, BetSize::Standard) => format!(
+                        "Correct. Calling {villain_bet} chips against a {bet_size} bet with a \
+                         {strength} is the right play. You need ~{required_equity_pct}% equity \
+                         and your hand is likely ahead of villain's bluffing frequency at this \
+                         sizing. Folding is too tight; raising turns a thin call into an \
+                         aggressive bluff-raise that few worse hands will call."
+                    ),
+                    (HandStrength::Strong, BetSize::Small) => format!(
+                        "Calling with a {strength} against a {bet_size} bet is fine but leaves \
+                         value behind. Villain is likely betting thin for value with hands you \
+                         beat — a raise to ~{raise_size} chips extracts more EV and is credible \
+                         given your strong range on the river."
+                    ),
+                    _ => format!(
+                        "Calling {villain_bet} chips with a {strength} against a {bet_size} bet \
+                         is -EV. You need ~{required_equity_pct}% equity and your hand is unlikely \
+                         to have it against a polarised river bet at this sizing. Fold."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "C".to_string(),
             text: format!("Raise to {raise_size} chips"),
             is_correct: correct == "C",
-            explanation: match (strength, bet_size) {
-                (HandStrength::Strong, BetSize::Small) => format!(
-                    "Correct. Raising to ~{raise_size} chips with a {strength} against a \
-                     {bet_size} villain bet maximises value. A small river bet from villain \
-                     often represents a thin value bet or a small bluff — your strong hand \
-                     is ahead of much of that range. A raise to ~2.5× the bet is credible \
-                     and extracts significantly more EV than a flat call. Villain will call \
-                     with weaker top pairs and strong one-pair hands."
-                ),
-                _ => format!(
-                    "Raising with a {strength} against a {bet_size} bet is too aggressive. \
-                     A raise commits a large portion of the stack with a hand that cannot \
-                     profitably call many re-raises. Only raise on the river when your hand \
-                     is strong enough to comfortably stack off."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match (strength, bet_size) {
+                    (HandStrength::Strong, BetSize::Small) => format!(
+                        "Correct — raise! Your opponent made a small bet and you have a strong hand. Raise to win more chips — they're likely to call."
+                    ),
+                    _ => format!(
+                        "Raising here is too aggressive for your hand strength. Just call or fold."
+                    ),
+                },
+                TextStyle::Technical => match (strength, bet_size) {
+                    (HandStrength::Strong, BetSize::Small) => format!(
+                        "Correct. Raising to ~{raise_size} chips with a {strength} against a \
+                         {bet_size} villain bet maximises value. A small river bet from villain \
+                         often represents a thin value bet or a small bluff — your strong hand \
+                         is ahead of much of that range. A raise to ~2.5× the bet is credible \
+                         and extracts significantly more EV than a flat call. Villain will call \
+                         with weaker top pairs and strong one-pair hands."
+                    ),
+                    _ => format!(
+                        "Raising with a {strength} against a {bet_size} bet is too aggressive. \
+                         A raise commits a large portion of the stack with a hand that cannot \
+                         profitably call many re-raises. Only raise on the river when your hand \
+                         is strong enough to comfortably stack off."
+                    ),
+                },
             },
         },
     ];

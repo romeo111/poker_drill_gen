@@ -9,12 +9,13 @@ a per-option explanation so players understand the *why* behind each decision.
 ## Quick Start
 
 ```rust
-use poker_drill_gen::{generate_training, DifficultyLevel, TrainingRequest, TrainingTopic};
+use poker_drill_gen::{generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic};
 
 let scenario = generate_training(TrainingRequest {
     topic:      TrainingTopic::PreflopDecision,
     difficulty: DifficultyLevel::Beginner,
     rng_seed:   Some(42), // deterministic; use None for entropy
+    text_style: TextStyle::Simple,  // plain English (default); or TextStyle::Technical
 });
 
 println!("{}", scenario.question);
@@ -41,6 +42,7 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 | `topic` | `TrainingTopic` | Which of the 15 topics to generate |
 | `difficulty` | `DifficultyLevel` | `Beginner`, `Intermediate`, or `Advanced` |
 | `rng_seed` | `Option<u64>` | `Some(seed)` for deterministic output; `None` for entropy |
+| `text_style` | `TextStyle` | `Simple` (plain English, default) or `Technical` (poker jargon) |
 
 **`TrainingScenario` fields**
 
@@ -110,6 +112,41 @@ FlushDraw:Call           ← pot-odds spot, flush draw, call is correct
 Use `branch_key` to track which decision types a student has mastered. The key is
 stable across different seeds — you can always regenerate a specific branch for
 targeted practice.
+
+---
+
+## Text Style
+
+The `text_style` field on `TrainingRequest` controls the language used in the `question` string
+and all `AnswerOption.explanation` strings. The game logic — which answer is correct, what cards
+are dealt, bet sizes — is identical in both modes. Only the wording changes.
+
+| Style | Audience | Description |
+|-------|----------|-------------|
+| `TextStyle::Simple` | Beginners | Plain English with no poker jargon. Concepts like SPR become "stack relative to pot". **This is the default.** |
+| `TextStyle::Technical` | Experienced players | Standard poker terminology: SPR, EV, fold equity, c-bet, range advantage, GTO, pot odds, etc. |
+
+**Example — Simple mode:**
+
+```
+Q: You're on the button with a missed flush draw and checked to on the river.
+   The pot is 20 chips. Do you bluff or give up?
+
+A: Bet large (15 chips) — With a busted draw and a lot of chips behind, your
+   opponent can't be sure you missed. Betting large forces them to fold often enough.
+```
+
+**Example — Technical mode:**
+
+```
+Q: BTN, missed FD, checked to on river. Pot 20, SPR 4.2. Bluff or check back?
+
+A: Bet large (15, ~75% pot) — With high fold equity, sufficient SPR, and a
+   polarised range, a large barrel generates positive EV. Villain cannot
+   profitably call without a strong hand given the sizing.
+```
+
+Both examples represent the same hand situation — only the text style differs.
 
 ---
 

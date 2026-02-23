@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -102,6 +102,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -154,77 +155,124 @@ pub fn generate<R: Rng>(
         (HandCategory::Trash, _)        => "Trash".to_string(),
     };
 
-    let question = format!(
-        "You hold {hand_str} ({cat}) on the {pos_str} ({pos_qualifier}, {stack_bb} BB deep). \
-         {limper_count} player(s) limp in front of you. Pot is {pot} chips. \
-         What is your action?"
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "You have {hand_str} in {pos_str} ({stack_bb} big blinds). \
+             {limper_count} player(s) just called the big blind without raising. \
+             Pot: {pot} chips. What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "You hold {hand_str} ({cat}) on the {pos_str} ({pos_qualifier}, {stack_bb} BB deep). \
+             {limper_count} player(s) limp in front of you. Pot is {pot} chips. \
+             What is your action?"
+        ),
+    };
 
     // --- Explanations ---
 
-    let fold_exp = if matches!(cat, HandCategory::Marginal | HandCategory::Trash) {
-        format!(
-            "Correct. A {cat} hand from {pos_str} against {limper_count} {limper_word} is a \
-             clear fold. Iso-raising with {hand_str} builds a large pot without sufficient \
-             equity against even limping ranges. Overlimping is even worse — it invites more \
-             players and removes any initiative. Fold and wait for a stronger hand."
-        )
-    } else {
-        format!(
-            "Folding {hand_str} ({cat}) from {pos_str} is too tight. You have enough hand \
-             strength and/or positional advantage to profitably enter the pot here. \
-             Limpers have shown weakness — exploit it."
-        )
+    let fold_exp = match text_style {
+        TextStyle::Simple => if matches!(cat, HandCategory::Marginal | HandCategory::Trash) {
+            format!(
+                "Correct — fold. {hand_str} isn't strong enough here, even against players who just called. Wait for a better hand."
+            )
+        } else {
+            format!(
+                "Folding {hand_str} here is too cautious — you have enough of a hand to bet and take control."
+            )
+        },
+        TextStyle::Technical => if matches!(cat, HandCategory::Marginal | HandCategory::Trash) {
+            format!(
+                "Correct. A {cat} hand from {pos_str} against {limper_count} {limper_word} is a \
+                 clear fold. Iso-raising with {hand_str} builds a large pot without sufficient \
+                 equity against even limping ranges. Overlimping is even worse — it invites more \
+                 players and removes any initiative. Fold and wait for a stronger hand."
+            )
+        } else {
+            format!(
+                "Folding {hand_str} ({cat}) from {pos_str} is too tight. You have enough hand \
+                 strength and/or positional advantage to profitably enter the pot here. \
+                 Limpers have shown weakness — exploit it."
+            )
+        },
     };
 
-    let overlimp_exp = match (cat, ip) {
-        (HandCategory::Playable, false) => format!(
-            "Correct. Overlimping with {hand_str} ({cat}) from the Small Blind is the best \
-             play. Iso-raising to {iso_chips} chips would build a large pot that you'll play \
-             from the worst position at the table (OOP every street). Instead, calling 1 BB \
-             lets you see a cheap flop with a speculative hand and realise implied odds \
-             without committing too many chips. Note: iso-raise from CO or BTN with this hand."
-        ),
-        _ => format!(
-            "Overlimping with {hand_str} ({cat}) from {pos_str} is too passive. \
-             {}",
-            if ip {
+    let overlimp_exp = match text_style {
+        TextStyle::Simple => match (cat, ip) {
+            (HandCategory::Playable, false) => format!(
+                "Correct — just call. With {hand_str} from the Small Blind (you'll act first all game), raising is risky. Call cheaply and see if you hit the flop."
+            ),
+            _ => if ip {
                 format!(
-                    "You have positional advantage (IP) — iso-raising to {iso_chips} chips \
-                     ({iso_bb} BB) is higher EV. It denies limpers' cheap flops, wins \
-                     dead money outright sometimes, and sets up a profitable postflop spot \
-                     in position."
+                    "Just calling here wastes your positional advantage. You're acting last — raise to take control and play heads-up."
                 )
             } else {
                 format!(
-                    "This hand is too strong to just call — iso-raise to {iso_chips} chips \
-                     ({iso_bb} BB) to punish the limpers and build the pot with initiative."
+                    "Just calling here is too passive with {hand_str}. Raise — you have a strong enough hand to take control."
                 )
-            }
-        ),
+            },
+        },
+        TextStyle::Technical => match (cat, ip) {
+            (HandCategory::Playable, false) => format!(
+                "Correct. Overlimping with {hand_str} ({cat}) from the Small Blind is the best \
+                 play. Iso-raising to {iso_chips} chips would build a large pot that you'll play \
+                 from the worst position at the table (OOP every street). Instead, calling 1 BB \
+                 lets you see a cheap flop with a speculative hand and realise implied odds \
+                 without committing too many chips. Note: iso-raise from CO or BTN with this hand."
+            ),
+            _ => format!(
+                "Overlimping with {hand_str} ({cat}) from {pos_str} is too passive. \
+                 {}",
+                if ip {
+                    format!(
+                        "You have positional advantage (IP) — iso-raising to {iso_chips} chips \
+                         ({iso_bb} BB) is higher EV. It denies limpers' cheap flops, wins \
+                         dead money outright sometimes, and sets up a profitable postflop spot \
+                         in position."
+                    )
+                } else {
+                    format!(
+                        "This hand is too strong to just call — iso-raise to {iso_chips} chips \
+                         ({iso_bb} BB) to punish the limpers and build the pot with initiative."
+                    )
+                }
+            ),
+        },
     };
 
-    let iso_exp = match (cat, ip) {
-        (HandCategory::Premium | HandCategory::Strong, _) => format!(
-            "Correct. Iso-raising to {iso_chips} chips ({iso_bb} BB) with {hand_str} ({cat}) \
-             is mandatory from {pos_str}. You never let limpers see a cheap flop with a \
-             premium or strong hand. The raise: (1) defines your hand as strong, \
-             (2) builds a pot with an equity advantage, (3) often wins uncontested vs \
-             {limper_count} {limper_word}. Size is {iso_bb} BB to account for {limper_count} \
-             limper(s) already in the pot."
-        ),
-        (HandCategory::Playable, true) => format!(
-            "Correct. Iso-raising to {iso_chips} chips ({iso_bb} BB) with {hand_str} ({cat}) \
-             from {pos_str} (IP) is correct. Limpers are almost always weaker than a raiser's \
-             range. With positional advantage postflop you can: c-bet profitably on a wide \
-             range of boards, win with fold equity, and extract value when you connect. \
-             {iso_bb} BB accounts for {limper_count} {limper_word} already limped."
-        ),
-        _ => format!(
-            "Iso-raising to {iso_chips} chips with {hand_str} ({cat}) from {pos_str} \
-             (OOP) builds too large a pot to play from the worst position at the table. \
-             With a {cat} hand OOP, overlimping or folding is better than iso-raising."
-        ),
+    let iso_exp = match text_style {
+        TextStyle::Simple => match (cat, ip) {
+            (HandCategory::Premium | HandCategory::Strong, _) => format!(
+                "Correct — raise to {iso_chips} chips ({iso_bb} big blinds)! You have a strong hand. Don't let the other players see a cheap flop — make them pay or fold."
+            ),
+            (HandCategory::Playable, true) => format!(
+                "Correct — raise to {iso_chips} chips ({iso_bb} big blinds)! You'll be acting last all hand, which is a big advantage. Raise to play heads-up in a strong position."
+            ),
+            _ => format!(
+                "Raising here puts a lot of chips into a pot where you'll be acting first every street — a tough spot with {hand_str}. Call or fold instead."
+            ),
+        },
+        TextStyle::Technical => match (cat, ip) {
+            (HandCategory::Premium | HandCategory::Strong, _) => format!(
+                "Correct. Iso-raising to {iso_chips} chips ({iso_bb} BB) with {hand_str} ({cat}) \
+                 is mandatory from {pos_str}. You never let limpers see a cheap flop with a \
+                 premium or strong hand. The raise: (1) defines your hand as strong, \
+                 (2) builds a pot with an equity advantage, (3) often wins uncontested vs \
+                 {limper_count} {limper_word}. Size is {iso_bb} BB to account for {limper_count} \
+                 limper(s) already in the pot."
+            ),
+            (HandCategory::Playable, true) => format!(
+                "Correct. Iso-raising to {iso_chips} chips ({iso_bb} BB) with {hand_str} ({cat}) \
+                 from {pos_str} (IP) is correct. Limpers are almost always weaker than a raiser's \
+                 range. With positional advantage postflop you can: c-bet profitably on a wide \
+                 range of boards, win with fold equity, and extract value when you connect. \
+                 {iso_bb} BB accounts for {limper_count} {limper_word} already limped."
+            ),
+            _ => format!(
+                "Iso-raising to {iso_chips} chips with {hand_str} ({cat}) from {pos_str} \
+                 (OOP) builds too large a pot to play from the worst position at the table. \
+                 With a {cat} hand OOP, overlimping or folding is better than iso-raising."
+            ),
+        },
     };
 
     let players = vec![

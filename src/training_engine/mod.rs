@@ -8,5 +8,5 @@ pub mod topics;
 pub use generator::generate_training;
 pub use models::{
     AnswerOption, DifficultyLevel, GameType, PlayerState,
-    Position, TableSetup, TrainingRequest, TrainingScenario, TrainingTopic,
+    Position, TableSetup, TextStyle, TrainingRequest, TrainingScenario, TrainingTopic,
 };

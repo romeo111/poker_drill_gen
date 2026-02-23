@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -43,6 +43,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -86,81 +87,124 @@ pub fn generate<R: Rng>(
     let hand_str  = format!("{}{}", hero_hand[0], hero_hand[1]);
     let board_str = board.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
 
-    let question = format!(
-        "3-bet pot c-bet. You hold {hand_str} ({fstrength}) on the Button (the 3-better). \
-         Villain called your 3-bet from the Big Blind. Board: {board_str} ({texture}). \
-         Pot: {pot} chips ({pot_bb} BB). Stack: {stack} chips (SPR ~{spr:.1}). \
-         Villain checks to you. What do you do?"
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "You re-raised before the flop and your opponent called. First three cards: {board_str}. \
+             You have {hand_str} on the Button. Pot: {pot} chips. Stack: {stack} chips. \
+             Your opponent checked to you. What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "3-bet pot c-bet. You hold {hand_str} ({fstrength}) on the Button (the 3-better). \
+             Villain called your 3-bet from the Big Blind. Board: {board_str} ({texture}). \
+             Pot: {pot} chips ({pot_bb} BB). Stack: {stack} chips (SPR ~{spr:.1}). \
+             Villain checks to you. What do you do?"
+        ),
+    };
 
     let answers = vec![
         AnswerOption {
             id: "A".to_string(),
             text: "Check back".to_string(),
             is_correct: correct == "A",
-            explanation: match (texture, fstrength) {
-                (_, FlopStrength::Weak) => format!(
-                    "Correct. Checking back a {fstrength} on a {texture} board is right in \
-                     this 3-bet pot. With SPR ~{spr:.1}, any c-bet represents a meaningful \
-                     commitment — if villain check-raises, folding is costly and calling risks \
-                     stacking off with poor equity. Check to keep the pot small and preserve \
-                     the option to bluff a favourable turn card."
-                ),
-                _ => format!(
-                    "Checking a {fstrength} in this 3-bet pot surrenders value. The low SPR \
-                     ({spr:.1}) means bets are decisive — extract now while you have the \
-                     equity lead. Villain's BB calling range is wide and misses the board \
-                     frequently. C-bet to build the pot you are likely to win."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match (texture, fstrength) {
+                    (_, FlopStrength::Weak) => format!(
+                        "Correct — check. Your hand is weak here. No need to bet — see the next card for free."
+                    ),
+                    _ => format!(
+                        "Checking here gives up on a hand worth betting. Take the initiative."
+                    ),
+                },
+                TextStyle::Technical => match (texture, fstrength) {
+                    (_, FlopStrength::Weak) => format!(
+                        "Correct. Checking back a {fstrength} on a {texture} board is right in \
+                         this 3-bet pot. With SPR ~{spr:.1}, any c-bet represents a meaningful \
+                         commitment — if villain check-raises, folding is costly and calling risks \
+                         stacking off with poor equity. Check to keep the pot small and preserve \
+                         the option to bluff a favourable turn card."
+                    ),
+                    _ => format!(
+                        "Checking a {fstrength} in this 3-bet pot surrenders value. The low SPR \
+                         ({spr:.1}) means bets are decisive — extract now while you have the \
+                         equity lead. Villain's BB calling range is wide and misses the board \
+                         frequently. C-bet to build the pot you are likely to win."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "B".to_string(),
             text: format!("C-bet small ({small_bet} chips ~33%)"),
             is_correct: correct == "B",
-            explanation: match (texture, fstrength) {
-                (BoardTexture::Dry, FlopStrength::Strong) => format!(
-                    "Correct. A small c-bet (~33% pot) with a {fstrength} on a {texture} board \
-                     is optimal. Dry boards miss villain's wide BB calling range frequently, \
-                     so a small probe achieves two goals: it extracts value from any pair or \
-                     draw while — given SPR ~{spr:.1} — starting to build toward a natural \
-                     stack commitment. Villain must act immediately with limited backdoor outs."
-                ),
-                (BoardTexture::Wet, FlopStrength::Strong) => format!(
-                    "A small c-bet on a {texture} board undersizes the protection needed. \
-                     Villain has many draws (flush draws, straight draws) that can call 33% \
-                     cheaply and realise equity. A larger bet (~67%) forces them to pay the \
-                     correct price and extracts more from made hands that call."
-                ),
-                _ => format!(
-                    "C-betting 33% with a {fstrength} is still a significant commitment at \
-                     SPR ~{spr:.1}. Any bet is hard to walk back in a 3-bet pot. Check back \
-                     and reassess on the turn."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match (texture, fstrength) {
+                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                        "Correct — bet small. The board is dry (no likely draws). A small bet is enough to collect chips and keep pressure on."
+                    ),
+                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                        "A small bet isn't enough on this type of board. Bet bigger or check."
+                    ),
+                    _ => format!(
+                        "A small bet isn't enough on this type of board. Bet bigger or check."
+                    ),
+                },
+                TextStyle::Technical => match (texture, fstrength) {
+                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                        "Correct. A small c-bet (~33% pot) with a {fstrength} on a {texture} board \
+                         is optimal. Dry boards miss villain's wide BB calling range frequently, \
+                         so a small probe achieves two goals: it extracts value from any pair or \
+                         draw while — given SPR ~{spr:.1} — starting to build toward a natural \
+                         stack commitment. Villain must act immediately with limited backdoor outs."
+                    ),
+                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                        "A small c-bet on a {texture} board undersizes the protection needed. \
+                         Villain has many draws (flush draws, straight draws) that can call 33% \
+                         cheaply and realise equity. A larger bet (~67%) forces them to pay the \
+                         correct price and extracts more from made hands that call."
+                    ),
+                    _ => format!(
+                        "C-betting 33% with a {fstrength} is still a significant commitment at \
+                         SPR ~{spr:.1}. Any bet is hard to walk back in a 3-bet pot. Check back \
+                         and reassess on the turn."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "C".to_string(),
             text: format!("C-bet large ({large_bet} chips ~67%)"),
             is_correct: correct == "C",
-            explanation: match (texture, fstrength) {
-                (BoardTexture::Wet, FlopStrength::Strong) => format!(
-                    "Correct. A large c-bet (~67% pot) with a {fstrength} on a {texture} board \
-                     is the highest-EV line. Wet boards give villain flush draws, straight draws, \
-                     and top pairs. Betting large charges every draw immediately, denies cheap \
-                     equity, and naturally commits the remaining stack at SPR ~{spr:.1}."
-                ),
-                (BoardTexture::Dry, FlopStrength::Strong) => format!(
-                    "A large c-bet on a {texture} board slightly over-bets the situation. \
-                     Dry boards rarely hit villain's calling range — a smaller bet (33%) \
-                     achieves the same fold equity while sizing more accurately to the \
-                     low-draw texture. Save larger sizings for boards with more draws."
-                ),
-                _ => format!(
-                    "C-betting 67% with a {fstrength} at SPR ~{spr:.1} puts a large portion \
-                     of your stack in with poor equity. If called or raised, you have little \
-                     fold equity and a tough decision. Check back instead."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match (texture, fstrength) {
+                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                        "Correct — bet big! The board has possible draws. Make your opponent pay dearly to chase them."
+                    ),
+                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                        "Betting big here is too much — a check or small bet fits this situation better."
+                    ),
+                    _ => format!(
+                        "Betting big here is too much — a check or small bet fits this situation better."
+                    ),
+                },
+                TextStyle::Technical => match (texture, fstrength) {
+                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                        "Correct. A large c-bet (~67% pot) with a {fstrength} on a {texture} board \
+                         is the highest-EV line. Wet boards give villain flush draws, straight draws, \
+                         and top pairs. Betting large charges every draw immediately, denies cheap \
+                         equity, and naturally commits the remaining stack at SPR ~{spr:.1}."
+                    ),
+                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                        "A large c-bet on a {texture} board slightly over-bets the situation. \
+                         Dry boards rarely hit villain's calling range — a smaller bet (33%) \
+                         achieves the same fold equity while sizing more accurately to the \
+                         low-draw texture. Save larger sizings for boards with more draws."
+                    ),
+                    _ => format!(
+                        "C-betting 67% with a {fstrength} at SPR ~{spr:.1} puts a large portion \
+                         of your stack in with poor equity. If called or raised, you have little \
+                         fold equity and a tough decision. Check back instead."
+                    ),
+                },
             },
         },
     ];

@@ -36,6 +36,7 @@
 6. [Hard Invariants](#6-hard-invariants)
 7. [branch\_key Catalogue](#7-branch_key-catalogue)
 8. [Test Requirements](#8-test-requirements)
+9. [TextStyle](#9-textstyle)
 
 ---
 
@@ -93,6 +94,13 @@ Position:
 DifficultyLevel:
   Beginner | Intermediate | Advanced
 
+TextStyle:
+  Simple    -- plain English, no poker jargon; DEFAULT
+  Technical -- standard poker terminology (SPR, EV, fold equity, c-bet, etc.)
+
+  Serializes as: "Simple" | "Technical"
+  Default (serde): Simple
+
 TrainingTopic:
   PreflopDecision          → prefix "PF"
   PostflopContinuationBet  → prefix "CB"
@@ -137,6 +145,8 @@ TrainingRequest {
   topic:      TrainingTopic
   difficulty: DifficultyLevel
   rng_seed:   Option<u64>   -- Some → deterministic; None → entropy
+  text_style: TextStyle     -- Simple (default) | Technical
+                            -- serde: defaults to Simple if field is absent
 }
 
 TrainingScenario {
@@ -178,8 +188,13 @@ engine/
 Each topic module exposes exactly one function:
 
 ```
-generate(rng, difficulty, scenario_id) -> TrainingScenario
+generate(rng, difficulty, scenario_id, text_style) -> TrainingScenario
 ```
+
+The `text_style` parameter is the last argument in every one of the 15 topic
+`generate()` functions. It is passed through from `TrainingRequest.text_style`
+and used only when building the `question` string and `AnswerOption.explanation`
+strings — it has no effect on the decision logic or card dealing.
 
 ---
 
@@ -1343,4 +1358,42 @@ A conforming implementation must pass tests in all of these groups:
 | T13 | 3 | 0 | CashGame | BTN |
 | T14 | 5 | > 0 | CashGame | BTN |
 | T15 | 4 | 0 | CashGame | BB |
+
+---
+
+## 9. TextStyle
+
+`TextStyle` controls the wording of `TrainingScenario.question` and every
+`AnswerOption.explanation`. The game logic (correct answer, cards dealt, bet
+sizes, branch_key) is **unchanged** regardless of which style is selected.
+
+```
+TextStyle:
+  Simple    -- plain English, no poker jargon; suitable for beginners
+  Technical -- standard poker terminology; suitable for experienced players
+```
+
+### Rules for conforming implementations
+
+1. Both styles must produce **non-empty** `question` and `explanation` strings
+   for every topic and difficulty level.
+
+2. For any given topic and seed, `Simple` and `Technical` must produce
+   **different** `question` strings (the wording is distinct between styles).
+
+3. For any given topic and seed, `Simple` and `Technical` must produce
+   **identical** correct answer IDs (the decision logic does not change).
+
+4. The field is **optional in JSON** (`#[serde(default)]`). A request that
+   omits `text_style` must behave as if `TextStyle::Simple` was specified.
+
+### Style signatures (illustrative)
+
+| Concept | Simple phrasing | Technical phrasing |
+|---------|----------------|--------------------|
+| Stack-to-pot ratio | "you have a lot of chips behind relative to the pot" | "SPR 4.2" |
+| Expected value | "this play makes money in the long run" | "positive EV" |
+| Continuation bet | "bet out after raising before the flop" | "c-bet" |
+| Fold equity | "bet forces villain to fold hands they'd otherwise win with" | "fold equity" |
+| Pot odds | "the bet is small enough that calling pays off" | "pot odds justify the call" |
 

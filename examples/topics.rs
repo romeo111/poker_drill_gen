@@ -9,7 +9,7 @@
 //!   • All answer options — correct one marked with ✓
 //!   • The full explanation for every choice
 
-use poker_drill_gen::{generate_training, DifficultyLevel, TrainingRequest, TrainingTopic};
+use poker_drill_gen::{generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic};
 
 // ── topic metadata ────────────────────────────────────────────────────────────
 
@@ -129,6 +129,7 @@ fn print_example(meta: &TopicMeta) {
         topic: meta.topic,
         difficulty: DifficultyLevel::Beginner,
         rng_seed: Some(meta.seed),
+        text_style: TextStyle::Simple,
     });
 
     let ts = &scenario.table_setup;

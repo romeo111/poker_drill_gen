@@ -2,7 +2,7 @@
 //!
 //! Included from `lib.rs` under `#[cfg(test)]`.
 //!
-//! # Coverage
+//! # Coverage (36 tests)
 //!
 //! | Group | What is tested |
 //! |-------|----------------|
@@ -12,9 +12,11 @@
 //! | Per-topic | Street (board card count), game type, hero position, bet presence |
 //! | Difficulty | All three levels produce valid scenarios |
 //! | Entropy | `rng_seed: None` produces a valid scenario (smoke test) |
+//! | TextStyle | Simple produces non-empty text; Simple ≠ Technical; correct answer unaffected by style |
 
 use crate::training_engine::{
-    generate_training, DifficultyLevel, GameType, Position, TrainingRequest, TrainingTopic,
+    generate_training, DifficultyLevel, GameType, Position, TextStyle, TrainingRequest,
+    TrainingTopic,
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ fn req(topic: TrainingTopic, seed: u64) -> TrainingRequest {
         topic,
         difficulty: DifficultyLevel::Intermediate,
         rng_seed: Some(seed),
+        text_style: TextStyle::Simple,
     }
 }
 
@@ -98,6 +101,7 @@ fn entropy_seed_produces_a_valid_scenario() {
         topic: TrainingTopic::PreflopDecision,
         difficulty: DifficultyLevel::Intermediate,
         rng_seed: None,
+        text_style: TextStyle::Simple,
     });
     assert!(!s.scenario_id.is_empty());
     assert!(!s.question.is_empty());
@@ -271,10 +275,101 @@ fn all_difficulty_levels_produce_valid_scenarios() {
                 topic,
                 difficulty: diff,
                 rng_seed: Some(1),
+                text_style: TextStyle::Simple,
             });
             assert!(!s.question.is_empty(), "{topic:?} at {diff:?} produced empty question");
             let correct = s.answers.iter().filter(|a| a.is_correct).count();
             assert_eq!(correct, 1, "{topic:?} at {diff:?} must have exactly 1 correct answer");
+        }
+    }
+}
+
+// ── text style ────────────────────────────────────────────────────────────────
+
+#[test]
+fn text_style_simple_produces_non_empty_text() {
+    for topic in all_topics() {
+        let s = generate_training(TrainingRequest {
+            topic,
+            difficulty: DifficultyLevel::Intermediate,
+            rng_seed: Some(42),
+            text_style: TextStyle::Simple,
+        });
+        assert!(
+            !s.question.is_empty(),
+            "Simple style produced empty question for {topic:?}"
+        );
+        for ans in &s.answers {
+            assert!(
+                !ans.explanation.is_empty(),
+                "Simple style produced empty explanation for answer {} in {topic:?}",
+                ans.id
+            );
+        }
+    }
+}
+
+#[test]
+fn text_style_technical_produces_different_text_than_simple() {
+    let sample_topics = [
+        TrainingTopic::PreflopDecision,
+        TrainingTopic::BluffSpot,
+        TrainingTopic::PostflopContinuationBet,
+    ];
+    for topic in sample_topics {
+        let simple = generate_training(TrainingRequest {
+            topic,
+            difficulty: DifficultyLevel::Intermediate,
+            rng_seed: Some(42),
+            text_style: TextStyle::Simple,
+        });
+        let technical = generate_training(TrainingRequest {
+            topic,
+            difficulty: DifficultyLevel::Intermediate,
+            rng_seed: Some(42),
+            text_style: TextStyle::Technical,
+        });
+        assert_ne!(
+            simple.question, technical.question,
+            "Simple and Technical produced identical question for {topic:?} — \
+             text_style is not being applied"
+        );
+    }
+}
+
+#[test]
+fn text_style_does_not_affect_correct_answer() {
+    for topic in all_topics() {
+        for seed in [1u64, 42, 999] {
+            let simple = generate_training(TrainingRequest {
+                topic,
+                difficulty: DifficultyLevel::Intermediate,
+                rng_seed: Some(seed),
+                text_style: TextStyle::Simple,
+            });
+            let technical = generate_training(TrainingRequest {
+                topic,
+                difficulty: DifficultyLevel::Intermediate,
+                rng_seed: Some(seed),
+                text_style: TextStyle::Technical,
+            });
+            let simple_correct = simple
+                .answers
+                .iter()
+                .find(|a| a.is_correct)
+                .map(|a| a.id.clone())
+                .expect("no correct answer in Simple scenario");
+            let technical_correct = technical
+                .answers
+                .iter()
+                .find(|a| a.is_correct)
+                .map(|a| a.id.clone())
+                .expect("no correct answer in Technical scenario");
+            assert_eq!(
+                simple_correct, technical_correct,
+                "Correct answer ID differs between Simple and Technical for \
+                 {topic:?} seed={seed} (Simple={simple_correct}, Technical={technical_correct})"
+            );
         }
     }
 }

@@ -12,6 +12,7 @@ question, and a full explanation for every answer option.
 - **Deterministic** — pass a seed and always get the same scenario (great for testing and sharing)
 - **Self-contained** — no network, no database, no external poker solver
 - **Fully explained** — every wrong answer tells you *why* it's wrong
+- **Two text styles** — `Simple` (plain English, no jargon) or `Technical` (SPR, EV, fold equity, c-bet, etc.)
 
 ---
 
@@ -24,12 +25,13 @@ poker_drill_gen = { path = "." }
 ```
 
 ```rust
-use poker_drill_gen::{generate_training, DifficultyLevel, TrainingRequest, TrainingTopic};
+use poker_drill_gen::{generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic};
 
 let scenario = generate_training(TrainingRequest {
     topic:      TrainingTopic::PreflopDecision,
     difficulty: DifficultyLevel::Beginner,
     rng_seed:   Some(42),   // deterministic; use None for entropy
+    text_style: TextStyle::Simple,  // plain English (default); or TextStyle::Technical
 });
 
 println!("{}", scenario.question);
@@ -83,6 +85,12 @@ pub struct TrainingRequest {
     pub topic:      TrainingTopic,
     pub difficulty: DifficultyLevel,   // Beginner | Intermediate | Advanced
     pub rng_seed:   Option<u64>,
+    pub text_style: TextStyle,         // Simple (default) | Technical
+}
+
+pub enum TextStyle {
+    Simple,    // plain English, no poker jargon — DEFAULT
+    Technical, // standard poker terminology (SPR, EV, fold equity, c-bet, etc.)
 }
 
 pub struct TrainingScenario {
@@ -96,6 +104,37 @@ pub struct TrainingScenario {
 ```
 
 All types implement `serde::Serialize` / `serde::Deserialize`.
+
+---
+
+## Text Style
+
+The `text_style` field on `TrainingRequest` controls the language used in the `question` and
+all `AnswerOption.explanation` strings. The game logic — which answer is correct, what cards
+are dealt, bet sizes — is identical in both modes. Only the text changes.
+
+| Style | Audience | Description |
+|-------|----------|-------------|
+| `TextStyle::Simple` | Beginners | Plain English with no poker jargon. Concepts are explained in everyday language. **This is the default.** |
+| `TextStyle::Technical` | Experienced players | Standard poker terminology: SPR, EV, fold equity, c-bet, range advantage, GTO, etc. |
+
+```rust
+// Beginner-friendly (default)
+let s = generate_training(TrainingRequest {
+    topic:      TrainingTopic::BluffSpot,
+    difficulty: DifficultyLevel::Beginner,
+    rng_seed:   Some(42),
+    text_style: TextStyle::Simple,   // or Default::default()
+});
+
+// Pro mode
+let s = generate_training(TrainingRequest {
+    topic:      TrainingTopic::BluffSpot,
+    difficulty: DifficultyLevel::Advanced,
+    rng_seed:   None,
+    text_style: TextStyle::Technical,
+});
+```
 
 ---
 
@@ -159,9 +198,10 @@ request rather than picking uniformly.
 cargo test
 ```
 
-33 tests covering determinism, structural invariants, deck integrity, difficulty
-levels, entropy mode, and per-topic sanity checks (board length, game type, hero
-position, bet presence).
+36 tests covering determinism, structural invariants, deck integrity, difficulty
+levels, entropy mode, per-topic sanity checks (board length, game type, hero
+position, bet presence), and TextStyle behaviour (non-empty text, Simple vs
+Technical produce different output, correct answer is unaffected by style).
 
 ---
 

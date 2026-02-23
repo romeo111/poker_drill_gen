@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -25,10 +25,19 @@ impl std::fmt::Display for ProbeStrength {
     }
 }
 
+fn probe_strength_simple(ps: ProbeStrength) -> &'static str {
+    match ps {
+        ProbeStrength::Strong => "strong hand",
+        ProbeStrength::Medium => "medium hand",
+        ProbeStrength::Weak   => "weak hand",
+    }
+}
+
 pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -73,81 +82,127 @@ pub fn generate<R: Rng>(
     let hand_str  = format!("{}{}", hero_hand[0], hero_hand[1]);
     let board_str = board.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
 
-    let question = format!(
-        "Turn probe spot. You hold {hand_str} ({strength}) in the Big Blind (OOP). \
-         The flop was checked through by both players. Board (flop + turn): {board_str}. \
-         Pot: {pot} chips ({pot_bb} BB). Stack: {stack} chips. \
-         You are first to act on the turn. \
-         Probe options: small ({small_probe} chips ~40%), large ({large_probe} chips ~70%). \
-         What do you do?"
-    );
+    let strength_simple = probe_strength_simple(strength);
+
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "Both players checked after the first three cards. Fourth card: {board_str}. \
+             You have {hand_str} ({strength_simple}) in the Big Blind (you act first). \
+             Pot: {pot} chips. Stack: {stack} chips. \
+             Options: check, bet small ({small_probe} chips), bet big ({large_probe} chips). What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "Turn probe spot. You hold {hand_str} ({strength}) in the Big Blind (OOP). \
+             The flop was checked through by both players. Board (flop + turn): {board_str}. \
+             Pot: {pot} chips ({pot_bb} BB). Stack: {stack} chips. \
+             You are first to act on the turn. \
+             Probe options: small ({small_probe} chips ~40%), large ({large_probe} chips ~70%). \
+             What do you do?"
+        ),
+    };
 
     let answers = vec![
         AnswerOption {
             id: "A".to_string(),
             text: "Check".to_string(),
             is_correct: correct == "A",
-            explanation: match strength {
-                ProbeStrength::Weak => format!(
-                    "Correct. Checking a {strength} in this OOP probe spot is right. \
-                     You have no equity justification to bet — a probe would be a pure bluff \
-                     into a player who checked back the flop (a capped but still medium-strong \
-                     range). Check, and consider check-folding if villain bets."
-                ),
-                _ => format!(
-                    "Checking a {strength} when you can take the initiative is too passive. \
-                     Villain checked back the flop — their range is capped (no sets, no \
-                     strong top pairs). Use that information and probe to build the pot or \
-                     apply pressure."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    ProbeStrength::Weak => format!(
+                        "Correct — check. Your hand is weak and your opponent didn't bet on the flop — no reason to bet now."
+                    ),
+                    _ => format!(
+                        "Checking here misses an opportunity. Your hand is strong enough to bet and take the pot."
+                    ),
+                },
+                TextStyle::Technical => match strength {
+                    ProbeStrength::Weak => format!(
+                        "Correct. Checking a {strength} in this OOP probe spot is right. \
+                         You have no equity justification to bet — a probe would be a pure bluff \
+                         into a player who checked back the flop (a capped but still medium-strong \
+                         range). Check, and consider check-folding if villain bets."
+                    ),
+                    _ => format!(
+                        "Checking a {strength} when you can take the initiative is too passive. \
+                         Villain checked back the flop — their range is capped (no sets, no \
+                         strong top pairs). Use that information and probe to build the pot or \
+                         apply pressure."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "B".to_string(),
             text: format!("Probe small ({small_probe} chips ~40%)"),
             is_correct: correct == "B",
-            explanation: match strength {
-                ProbeStrength::Medium => format!(
-                    "Correct. A small probe (~40% pot) with a {strength} is the best line. \
-                     Your hand has some equity (a pair or draw) and a small bet applies \
-                     pressure without over-committing. If called, you have reasonable pot \
-                     odds for a river bet or free showdown. If raised, you can fold \
-                     without a catastrophic loss."
-                ),
-                ProbeStrength::Strong => format!(
-                    "A small probe with a {strength} undersizes the value available. Villain's \
-                     flop check-back range includes top pairs and floats — a larger probe \
-                     (~70%) extracts more from one-pair hands and charges any draws more \
-                     effectively."
-                ),
-                ProbeStrength::Weak => format!(
-                    "Probing small with a {strength} is a bluff with poor equity. Villain may \
-                     have floated the flop with a medium hand and will call or raise. \
-                     Without equity to fall back on, this bet risks chips without justification."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    ProbeStrength::Medium => format!(
+                        "Correct — bet small. Your hand is decent but not great. A small bet tests the water and may win the pot without risking too much."
+                    ),
+                    ProbeStrength::Strong => format!(
+                        "A small bet doesn't do enough here — bet bigger to put real pressure on, or just check."
+                    ),
+                    ProbeStrength::Weak => format!(
+                        "A small bet doesn't do enough here — bet bigger to put real pressure on, or just check."
+                    ),
+                },
+                TextStyle::Technical => match strength {
+                    ProbeStrength::Medium => format!(
+                        "Correct. A small probe (~40% pot) with a {strength} is the best line. \
+                         Your hand has some equity (a pair or draw) and a small bet applies \
+                         pressure without over-committing. If called, you have reasonable pot \
+                         odds for a river bet or free showdown. If raised, you can fold \
+                         without a catastrophic loss."
+                    ),
+                    ProbeStrength::Strong => format!(
+                        "A small probe with a {strength} undersizes the value available. Villain's \
+                         flop check-back range includes top pairs and floats — a larger probe \
+                         (~70%) extracts more from one-pair hands and charges any draws more \
+                         effectively."
+                    ),
+                    ProbeStrength::Weak => format!(
+                        "Probing small with a {strength} is a bluff with poor equity. Villain may \
+                         have floated the flop with a medium hand and will call or raise. \
+                         Without equity to fall back on, this bet risks chips without justification."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "C".to_string(),
             text: format!("Probe large ({large_probe} chips ~70%)"),
             is_correct: correct == "C",
-            explanation: match strength {
-                ProbeStrength::Strong => format!(
-                    "Correct. A large probe (~70% pot) with a {strength} is the highest-EV \
-                     play. Villain's check-back range is capped and contains many one-pair \
-                     and draw hands. A larger bet extracts maximum value, charges draws \
-                     effectively, and builds a significant pot worth fighting for on the river."
-                ),
-                ProbeStrength::Medium => format!(
-                    "A large probe with a {strength} over-commits to a hand with moderate \
-                     equity. If raised, you face a tough spot with a middle pair or weak \
-                     draw. A smaller probe (~40%) achieves semi-bluff value at lower risk."
-                ),
-                ProbeStrength::Weak => format!(
-                    "Probing large with a {strength} is a high-risk bluff with minimal equity. \
-                     Villain's check-back range often contains medium-strength hands that call \
-                     or raise large bets. Check to preserve your stack."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    ProbeStrength::Strong => format!(
+                        "Correct — bet big! You have a strong hand and the Button didn't bet after the flop (a sign of weakness). Take the pot now with a big bet."
+                    ),
+                    ProbeStrength::Medium => format!(
+                        "Betting big here is too aggressive for your hand strength. Bet small or check."
+                    ),
+                    ProbeStrength::Weak => format!(
+                        "Betting big here is too aggressive for your hand strength. Bet small or check."
+                    ),
+                },
+                TextStyle::Technical => match strength {
+                    ProbeStrength::Strong => format!(
+                        "Correct. A large probe (~70% pot) with a {strength} is the highest-EV \
+                         play. Villain's check-back range is capped and contains many one-pair \
+                         and draw hands. A larger bet extracts maximum value, charges draws \
+                         effectively, and builds a significant pot worth fighting for on the river."
+                    ),
+                    ProbeStrength::Medium => format!(
+                        "A large probe with a {strength} over-commits to a hand with moderate \
+                         equity. If raised, you face a tough spot with a middle pair or weak \
+                         draw. A smaller probe (~40%) achieves semi-bluff value at lower risk."
+                    ),
+                    ProbeStrength::Weak => format!(
+                        "Probing large with a {strength} is a high-risk bluff with minimal equity. \
+                         Villain's check-back range often contains medium-strength hands that call \
+                         or raise large bets. Check to preserve your stack."
+                    ),
+                },
             },
         },
     ];

@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -50,6 +50,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let stage = random_stage(rng);
     let bb = 100u32; // tournament chips, 100 = 1 BB
@@ -99,12 +100,20 @@ pub fn generate<R: Rng>(
         TournamentStage::EarlyLevels  => 3.0,
     };
 
-    let question = format!(
-        "Tournament: {stage}. {players_remaining} players remain, top {paid_spots} paid. \
-         You hold {hand_str} on the {pos_str} with {hero_stack_bb} BB. \
-         Villain on the BB has {villain_stack_bb} BB. \
-         Action folds to you. Do you shove all-in or fold?"
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "Tournament: {stage}. {players_remaining} players left, top {paid_spots} get paid. \
+             You have {hand_str} on the Button with {hero_stack_bb} big blinds. \
+             Your opponent in the Big Blind has {villain_stack_bb} big blinds. \
+             Everyone else folded. Go all-in or fold?"
+        ),
+        TextStyle::Technical => format!(
+            "Tournament: {stage}. {players_remaining} players remain, top {paid_spots} paid. \
+             You hold {hand_str} on the {pos_str} with {hero_stack_bb} BB. \
+             Villain on the BB has {villain_stack_bb} BB. \
+             Action folds to you. Do you shove all-in or fold?"
+        ),
+    };
 
     let push_body = if should_push {
         format!(
@@ -123,9 +132,16 @@ pub fn generate<R: Rng>(
              hand."
         )
     };
-    let push_explanation = format!(
-        "Shoving {hero_stack_bb} BB with {hand_str} from {pos_str} during {stage}: {push_body}"
-    );
+    let push_explanation = match text_style {
+        TextStyle::Simple => if should_push {
+            format!("Correct — go all-in! With only {hero_stack_bb} big blinds, your stack is shrinking fast. Waiting for a perfect hand will cost you too much. Shove now.")
+        } else {
+            format!("Going all-in too early at {hero_stack_bb} big blinds risks your tournament life needlessly. You still have time to find a better spot.")
+        },
+        TextStyle::Technical => format!(
+            "Shoving {hero_stack_bb} BB with {hand_str} from {pos_str} during {stage}: {push_body}"
+        ),
+    };
 
     let fold_body = if !should_push {
         format!(
@@ -142,9 +158,16 @@ pub fn generate<R: Rng>(
              with less fold equity."
         )
     };
-    let fold_explanation = format!(
-        "Folding {hand_str} from {pos_str} with {hero_stack_bb} BB during {stage}: {fold_body}"
-    );
+    let fold_explanation = match text_style {
+        TextStyle::Simple => if !should_push {
+            format!("Correct — fold. You still have enough chips ({hero_stack_bb} big blinds) to wait for a better spot. Don't risk elimination unnecessarily.")
+        } else {
+            format!("Folding here is wrong — with {hero_stack_bb} big blinds your stack is getting dangerously low. You need to shove while you still have some chips to be scary.")
+        },
+        TextStyle::Technical => format!(
+            "Folding {hand_str} from {pos_str} with {hero_stack_bb} BB during {stage}: {fold_body}"
+        ),
+    };
 
     let answers = vec![
         AnswerOption {

@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -25,10 +25,19 @@ impl std::fmt::Display for HandStrength {
     }
 }
 
+fn hand_strength_simple(hs: HandStrength) -> &'static str {
+    match hs {
+        HandStrength::Nuts   => "very strong hand",
+        HandStrength::Strong => "strong hand",
+        HandStrength::Medium => "medium hand",
+    }
+}
+
 pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -72,84 +81,135 @@ pub fn generate<R: Rng>(
     let hero_pos = Position::BTN;
     let hand_str  = format!("{}{}", hero_hand[0], hero_hand[1]);
     let board_str = board.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
+    let strength_simple = hand_strength_simple(strength);
 
-    let question = format!(
-        "River spot. You hold {hand_str} ({strength}) on Button. \
-         Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). \
-         Stack: {stack} chips. Villain checks to you. \
-         Bet options: small ({small_bet} chips ~33%), \
-         large ({large_bet} chips ~75%), overbet ({overbet} chips ~125%). \
-         What do you do?"
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "Last card. You have {hand_str} (a {strength_simple}) on the Button. \
+             Board: {board_str}. Pot: {pot} chips. Your opponent checked to you. \
+             Options: check, bet small ({small_bet} chips), bet big ({large_bet} chips), overbet ({overbet} chips). What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "River spot. You hold {hand_str} ({strength}) on Button. \
+             Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). \
+             Stack: {stack} chips. Villain checks to you. \
+             Bet options: small ({small_bet} chips ~33%), \
+             large ({large_bet} chips ~75%), overbet ({overbet} chips ~125%). \
+             What do you do?"
+        ),
+    };
 
     let answers = vec![
         AnswerOption {
             id: "A".to_string(),
             text: "Check".to_string(),
             is_correct: correct == "A",
-            explanation: match strength {
-                HandStrength::Medium => format!(
-                    "Correct. Checking back with a {strength} on the river controls the pot. \
-                     Betting risks getting check-raised by better hands (two pair, sets) and \
-                     called only by hands that beat you — a classic thin-value trap. \
-                     Take the free showdown."
-                ),
-                _ => format!(
-                    "Checking with a {strength} surrenders significant value. Villain will \
-                     rarely bet into you on the river with hands that can pay off a bet. \
-                     Always bet for value when you have a strong made hand and villain checks."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    HandStrength::Medium => format!(
+                        "Correct — check. Your hand is decent but not dominant. Betting risks giving your opponent a reason to raise and win a big pot."
+                    ),
+                    _ => format!(
+                        "Checking here loses value — you have a strong hand and your opponent will likely call a bet. Bet!"
+                    ),
+                },
+                TextStyle::Technical => match strength {
+                    HandStrength::Medium => format!(
+                        "Correct. Checking back with a {strength} on the river controls the pot. \
+                         Betting risks getting check-raised by better hands (two pair, sets) and \
+                         called only by hands that beat you — a classic thin-value trap. \
+                         Take the free showdown."
+                    ),
+                    _ => format!(
+                        "Checking with a {strength} surrenders significant value. Villain will \
+                         rarely bet into you on the river with hands that can pay off a bet. \
+                         Always bet for value when you have a strong made hand and villain checks."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "B".to_string(),
             text: format!("Bet small ({small_bet} chips ~33%)"),
             is_correct: false,
-            explanation: format!(
-                "A 33% pot bet with a {strength} undersizes the value. Villain's calling range \
-                 is capped by the river action — they will call a larger bet just as often with \
-                 hands that beat you, and fold the same weak hands. Size up to extract more EV."
-            ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    HandStrength::Medium => format!(
+                        "Betting too small here leaves money behind. Your hand is strong — bet bigger to win more."
+                    ),
+                    _ => format!(
+                        "Betting too small here leaves money behind. Your hand is strong — bet bigger to win more."
+                    ),
+                },
+                TextStyle::Technical => format!(
+                    "A 33% pot bet with a {strength} undersizes the value. Villain's calling range \
+                     is capped by the river action — they will call a larger bet just as often with \
+                     hands that beat you, and fold the same weak hands. Size up to extract more EV."
+                ),
+            },
         },
         AnswerOption {
             id: "C".to_string(),
             text: format!("Bet large ({large_bet} chips ~75%)"),
             is_correct: correct == "C",
-            explanation: match strength {
-                HandStrength::Strong => format!(
-                    "Correct. A 75% pot value bet with a {strength} is optimal. It maximises \
-                     value from villain's weaker made hands (top pair, second pair) while \
-                     remaining credible — not so large that villain folds everything that \
-                     can call. This is the standard value sizing on the river."
-                ),
-                HandStrength::Nuts => format!(
-                    "A 75% pot bet is good but leaves value on the table with a {strength}. \
-                     Consider an overbet — your hand can credibly represent a polarised value \
-                     range and villain must call off a large portion of their stack."
-                ),
-                HandStrength::Medium => format!(
-                    "Betting 75% pot with a {strength} is a risky thin value bet. You risk \
-                     being called by better hands and raised off a marginal holding. \
-                     Check is higher EV here."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    HandStrength::Strong => format!(
+                        "Correct — bet big! You have a strong hand and your opponent is likely to call. Get paid as much as possible."
+                    ),
+                    HandStrength::Nuts => format!(
+                        "Going overboard on the bet size risks your opponent folding a hand that would have called a normal big bet."
+                    ),
+                    HandStrength::Medium => format!(
+                        "Betting big here is risky when your hand isn't quite strong enough for it."
+                    ),
+                },
+                TextStyle::Technical => match strength {
+                    HandStrength::Strong => format!(
+                        "Correct. A 75% pot value bet with a {strength} is optimal. It maximises \
+                         value from villain's weaker made hands (top pair, second pair) while \
+                         remaining credible — not so large that villain folds everything that \
+                         can call. This is the standard value sizing on the river."
+                    ),
+                    HandStrength::Nuts => format!(
+                        "A 75% pot bet is good but leaves value on the table with a {strength}. \
+                         Consider an overbet — your hand can credibly represent a polarised value \
+                         range and villain must call off a large portion of their stack."
+                    ),
+                    HandStrength::Medium => format!(
+                        "Betting 75% pot with a {strength} is a risky thin value bet. You risk \
+                         being called by better hands and raised off a marginal holding. \
+                         Check is higher EV here."
+                    ),
+                },
             },
         },
         AnswerOption {
             id: "D".to_string(),
             text: format!("Overbet ({overbet} chips ~125%)"),
             is_correct: correct == "D",
-            explanation: match strength {
-                HandStrength::Nuts => format!(
-                    "Correct. An overbet with a {strength} is the highest-EV play. Your hand is \
-                     at the top of your range — you can represent a polarised range that includes \
-                     both bluffs and the nuts. Villain cannot fold their strong hands here, and \
-                     weak hands that would call 75% will also call 125%. Maximise the pot."
-                ),
-                _ => format!(
-                    "Overbetting with a {strength} is too ambitious. An overbet signals a \
-                     polarised range (nuts or bluff) — villain will call with better hands \
-                     and fold hands you dominate. Use 75% pot sizing instead."
-                ),
+            explanation: match text_style {
+                TextStyle::Simple => match strength {
+                    HandStrength::Nuts => format!(
+                        "Correct — go big! You have the strongest possible hand here. Bet as much as you can — your opponent will likely call."
+                    ),
+                    _ => format!(
+                        "Going overboard on the bet size risks your opponent folding a hand that would have called a normal big bet."
+                    ),
+                },
+                TextStyle::Technical => match strength {
+                    HandStrength::Nuts => format!(
+                        "Correct. An overbet with a {strength} is the highest-EV play. Your hand is \
+                         at the top of your range — you can represent a polarised range that includes \
+                         both bluffs and the nuts. Villain cannot fold their strong hands here, and \
+                         weak hands that would call 75% will also call 125%. Maximise the pot."
+                    ),
+                    _ => format!(
+                        "Overbetting with a {strength} is too ambitious. An overbet signals a \
+                         polarised range (nuts or bluff) — villain will call with better hands \
+                         and fold hands you dominate. Use 75% pot sizing instead."
+                    ),
+                },
             },
         },
     ];

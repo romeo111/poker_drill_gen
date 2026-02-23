@@ -4,7 +4,7 @@ use crate::training_engine::{
     evaluator::{has_flush_draw, has_straight_draw},
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, Suit, TableSetup, TrainingScenario, TrainingTopic,
+        Position, Suit, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -100,6 +100,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
 
@@ -163,78 +164,129 @@ pub fn generate<R: Rng>(
         _                                                   => "B",
     };
 
-    let question = format!(
-        "You are in the Big Blind (OOP). Flop: {board_str} ({board_favour_str}). \
-         You hold {hand_str} ({interaction_str}). \
-         Villain on the Button bets {villain_bet} chips ({villain_bet_pct}% pot). \
-         Pot is {pot} chips ({pot_bb} BB). Stack: {stack} chips ({stack_bb} BB). \
-         What is your action?"
-    );
-
-    let fold_exp = if matches!((board_favour, interaction),
-        (BoardFavour::IPFavorable, HandInteraction::Weak)) {
-        format!(
-            "Correct. With {interaction_str} on a {board_favour_str} board ({board_str}), \
-             you have no pair, no draw, and the board heavily favours villain's preflop range. \
-             Calling invests {villain_bet} chips with almost no equity. Fold."
-        )
-    } else {
-        format!(
-            "Folding {hand_str} ({interaction_str}) here is too tight. You have enough \
-             equity or positional leverage to continue, either by calling or check-raising. \
-             A fold surrenders too much to villain's {villain_bet_pct}% pot bet."
-        )
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "You're in the Big Blind (you act first). First three cards: {board_str}. \
+             You have {hand_str}. The Button bet {villain_bet} chips. \
+             Pot: {pot} chips. Stack: {stack} chips. What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "You are in the Big Blind (OOP). Flop: {board_str} ({board_favour_str}). \
+             You hold {hand_str} ({interaction_str}). \
+             Villain on the Button bets {villain_bet} chips ({villain_bet_pct}% pot). \
+             Pot is {pot} chips ({pot_bb} BB). Stack: {stack} chips ({stack_bb} BB). \
+             What is your action?"
+        ),
     };
 
-    let call_exp = if correct == "B" {
-        format!(
-            "Correct. Check-calling with {hand_str} ({interaction_str}) on {board_str} \
-             is the best play. You have equity to continue but not the ideal conditions for \
-             a check-raise (either the board doesn't favour your range, or your draw alone \
-             doesn't justify building a large pot OOP). Call {villain_bet} and re-evaluate \
-             on the turn."
-        )
-    } else if matches!((board_favour, interaction),
-        (BoardFavour::BBFavorable, HandInteraction::Strong)) {
-        format!(
-            "Check-calling with a strong hand on a BB-favorable board leaves value on the \
-             table. You should check-raise to {cr_size} chips to build the pot while you're \
-             ahead and deny villain's equity from backdoor draws and overcards."
-        )
-    } else {
-        format!(
-            "Check-calling is passive here. With {interaction_str} on {board_str}, a \
-             check-raise to {cr_size} chips extracts more value and applies pressure. \
-             Calling gives villain a free turn card to improve or bluff again cheaply."
-        )
+    let fold_exp = match text_style {
+        TextStyle::Simple => if matches!((board_favour, interaction),
+            (BoardFavour::IPFavorable, HandInteraction::Weak)) {
+            format!(
+                "Correct — fold. You have nothing and the cards favour your opponent's hand. Putting more chips in would be throwing them away."
+            )
+        } else {
+            format!(
+                "Folding here is too cautious — you have enough of a hand to continue. Call or raise."
+            )
+        },
+        TextStyle::Technical => if matches!((board_favour, interaction),
+            (BoardFavour::IPFavorable, HandInteraction::Weak)) {
+            format!(
+                "Correct. With {interaction_str} on a {board_favour_str} board ({board_str}), \
+                 you have no pair, no draw, and the board heavily favours villain's preflop range. \
+                 Calling invests {villain_bet} chips with almost no equity. Fold."
+            )
+        } else {
+            format!(
+                "Folding {hand_str} ({interaction_str}) here is too tight. You have enough \
+                 equity or positional leverage to continue, either by calling or check-raising. \
+                 A fold surrenders too much to villain's {villain_bet_pct}% pot bet."
+            )
+        },
     };
 
-    let cr_exp = match (board_favour, interaction, correct) {
-        (BoardFavour::BBFavorable, HandInteraction::Strong, "C") => format!(
-            "Correct. Check-raising to {cr_size} chips (2.5× villain's {villain_bet}) with \
-             {hand_str} ({interaction_str}) on a {board_favour_str} board ({board_str}) is \
-             the highest-EV play. This board hits your BB defending range (low/connected) \
-             much harder than villain's late-position range. You protect your hand, build \
-             the pot with the best of it, and deny villain cheap equity."
-        ),
-        (_, HandInteraction::Draw, "C") => format!(
-            "Correct. Check-raising to {cr_size} chips (2.5× villain's {villain_bet}) as a \
-             combo-draw semi-bluff with {hand_str} on {board_str} is correct. Your combo \
-             draw has ~54% equity on the flop — you are a slight favourite! The check-raise \
-             wins the pot outright when villain folds, and builds a large pot when villain \
-             calls into your equity advantage."
-        ),
-        (BoardFavour::IPFavorable, _, _) => format!(
-            "Check-raising on a {board_favour_str} board ({board_str}) with {hand_str} \
-             ({interaction_str}) is a bluff into villain's strongest range. This board \
-             connects heavily with late-position preflop hands; your check-raise has very \
-             low fold equity and risks getting 3-bet off a weak hand."
-        ),
-        _ => format!(
-            "Check-raising with only a {interaction_str} (not a combo draw) may be \
-             too aggressive here. Without either a very strong made hand or a combo draw, \
-             the check-raise over-commits chips OOP without sufficient equity to back it up."
-        ),
+    let call_exp = match text_style {
+        TextStyle::Simple => if correct == "B" {
+            format!(
+                "Correct — call. You have enough of a hand to continue, but not quite enough to raise. Call {villain_bet} chips and see the next card."
+            )
+        } else if matches!((board_favour, interaction),
+            (BoardFavour::BBFavorable, HandInteraction::Strong)) {
+            format!(
+                "Just calling here leaves money on the table. You have a strong hand on a board that favours you — raise to build the pot!"
+            )
+        } else {
+            format!(
+                "Just calling here is too passive. With a powerful draw, raise to put maximum pressure on your opponent."
+            )
+        },
+        TextStyle::Technical => if correct == "B" {
+            format!(
+                "Correct. Check-calling with {hand_str} ({interaction_str}) on {board_str} \
+                 is the best play. You have equity to continue but not the ideal conditions for \
+                 a check-raise (either the board doesn't favour your range, or your draw alone \
+                 doesn't justify building a large pot OOP). Call {villain_bet} and re-evaluate \
+                 on the turn."
+            )
+        } else if matches!((board_favour, interaction),
+            (BoardFavour::BBFavorable, HandInteraction::Strong)) {
+            format!(
+                "Check-calling with a strong hand on a BB-favorable board leaves value on the \
+                 table. You should check-raise to {cr_size} chips to build the pot while you're \
+                 ahead and deny villain's equity from backdoor draws and overcards."
+            )
+        } else {
+            format!(
+                "Check-calling is passive here. With {interaction_str} on {board_str}, a \
+                 check-raise to {cr_size} chips extracts more value and applies pressure. \
+                 Calling gives villain a free turn card to improve or bluff again cheaply."
+            )
+        },
+    };
+
+    let cr_exp = match text_style {
+        TextStyle::Simple => match (board_favour, interaction, correct) {
+            (BoardFavour::BBFavorable, HandInteraction::Strong, "C") => format!(
+                "Correct — raise to {cr_size} chips! You have a strong hand and the cards are in your favour. Build the pot while you're ahead."
+            ),
+            (_, HandInteraction::Draw, "C") => format!(
+                "Correct — raise to {cr_size} chips! You have a powerful draw with about a 54% chance of winning. Raising wins the pot immediately if your opponent folds, and builds a big pot when they call."
+            ),
+            (BoardFavour::IPFavorable, _, _) => format!(
+                "Raising here is a bluff into your opponent's strong card range. They're unlikely to fold and you risk a lot of chips with a weak hand."
+            ),
+            _ => format!(
+                "Raising without a very strong hand or a powerful draw is too aggressive here. Call instead."
+            ),
+        },
+        TextStyle::Technical => match (board_favour, interaction, correct) {
+            (BoardFavour::BBFavorable, HandInteraction::Strong, "C") => format!(
+                "Correct. Check-raising to {cr_size} chips (2.5× villain's {villain_bet}) with \
+                 {hand_str} ({interaction_str}) on a {board_favour_str} board ({board_str}) is \
+                 the highest-EV play. This board hits your BB defending range (low/connected) \
+                 much harder than villain's late-position range. You protect your hand, build \
+                 the pot with the best of it, and deny villain cheap equity."
+            ),
+            (_, HandInteraction::Draw, "C") => format!(
+                "Correct. Check-raising to {cr_size} chips (2.5× villain's {villain_bet}) as a \
+                 combo-draw semi-bluff with {hand_str} on {board_str} is correct. Your combo \
+                 draw has ~54% equity on the flop — you are a slight favourite! The check-raise \
+                 wins the pot outright when villain folds, and builds a large pot when villain \
+                 calls into your equity advantage."
+            ),
+            (BoardFavour::IPFavorable, _, _) => format!(
+                "Check-raising on a {board_favour_str} board ({board_str}) with {hand_str} \
+                 ({interaction_str}) is a bluff into villain's strongest range. This board \
+                 connects heavily with late-position preflop hands; your check-raise has very \
+                 low fold equity and risks getting 3-bet off a weak hand."
+            ),
+            _ => format!(
+                "Check-raising with only a {interaction_str} (not a combo draw) may be \
+                 too aggressive here. Without either a very strong made hand or a combo draw, \
+                 the check-raise over-commits chips OOP without sufficient equity to back it up."
+            ),
+        },
     };
 
     let answers = vec![

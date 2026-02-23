@@ -185,11 +185,29 @@ impl fmt::Display for DifficultyLevel {
     }
 }
 
+/// Controls the language style of question and explanation text.
+///
+/// `Simple` (the default) uses plain English with no poker jargon — suitable
+/// for new players.  `Technical` uses standard poker terminology (SPR, EV,
+/// fold equity, c-bet, etc.) aimed at more experienced players.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum TextStyle {
+    /// Plain English, no jargon.  This is the default.
+    #[default]
+    Simple,
+    /// Standard poker terminology — SPR, EV, fold equity, c-bet, etc.
+    Technical,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingRequest {
     pub topic: TrainingTopic,
     pub difficulty: DifficultyLevel,
     pub rng_seed: Option<u64>,
+    /// Language style for question and explanation text.
+    /// Defaults to `TextStyle::Simple` (plain English).
+    #[serde(default)]
+    pub text_style: TextStyle,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,7 +7,7 @@ use crate::training_engine::{
     },
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -30,6 +30,15 @@ impl std::fmt::Display for DrawType {
     }
 }
 
+fn draw_type_simple(dt: DrawType) -> &'static str {
+    match dt {
+        DrawType::FlushDraw         => "flush draw (you need one more card of the same suit to make a flush)",
+        DrawType::OpenEndedStraight => "straight draw (you can complete a straight on either end)",
+        DrawType::ComboDraw         => "two-way draw (flush or straight possible)",
+        DrawType::GutShot           => "inside straight draw (only one card completes your straight)",
+    }
+}
+
 fn hero_equity(draw: DrawType, streets: u8) -> f32 {
     match draw {
         DrawType::FlushDraw         => flush_draw_equity(streets),
@@ -43,6 +52,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -84,45 +94,78 @@ pub fn generate<R: Rng>(
     let board_str = board.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
     let hero_pos = Position::BB;
 
-    let question = format!(
-        "You hold {hand_str} and have a {draw_type} on the flop {board_str}. \
-         The pot is {pot} chips ({pot_bb} BB). Villain bets {bet} chips \
-         ({:.0}% of pot). Do you call or fold?",
-        bet_pct * 100.0
-    );
+    let draw_type_label = format!("{}", draw_type);
+    let draw_type_simple_label = draw_type_simple(draw_type);
 
-    let call_explanation = format!(
-        "Call analysis: Pot after call = {} chips. You are calling {bet} chips. \
-         Required equity = {bet}/{} = {:.1}%. \
-         Approximate {draw_type} equity with 2 streets = {:.1}%. \
-         {} Therefore calling {} correct here.",
-        pot + bet,
-        pot + bet,
-        req_eq * 100.0,
-        actual_eq * 100.0,
-        if should_call {
-            "Your equity EXCEEDS the required equity."
-        } else {
-            "Your equity is BELOW the required equity."
-        },
-        if should_call { "IS" } else { "is NOT" },
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "You have {hand_str} and are chasing a {draw_type_simple_label} after the first three cards: {board_str}. \
+             Pot: {pot} chips. Your opponent bet {bet} chips. Do you call or fold?"
+        ),
+        TextStyle::Technical => format!(
+            "You hold {hand_str} and have a {draw_type_label} on the flop {board_str}. \
+             The pot is {pot} chips ({pot_bb} BB). Villain bets {bet} chips \
+             ({:.0}% of pot). Do you call or fold?",
+            bet_pct * 100.0
+        ),
+    };
 
-    let fold_explanation = format!(
-        "Fold analysis: You need {:.1}% equity to call (calling {bet} into a pot of {} chips). \
-         Your {draw_type} has approximately {:.1}% equity with 2 cards to come. \
-         {} Folding {} correct.",
-        req_eq * 100.0,
-        pot + bet,
-        actual_eq * 100.0,
-        if !should_call {
-            "Since your equity is below the break-even threshold, folding preserves chips."
+    let call_explanation = match text_style {
+        TextStyle::Simple => if should_call {
+            format!(
+                "Correct — call! You have a good chance of improving your hand ({:.0}% roughly), and the price to call is fair. You'll win enough when you hit to make this worthwhile.",
+                actual_eq * 100.0
+            )
         } else {
-            "However, folding here discards positive expected value since your draw \
-             exceeds the required equity."
+            format!(
+                "Calling here is a mistake. Your hand ({draw_type_simple_label}) doesn't have a good enough chance of improving to make this call worth the price."
+            )
         },
-        if !should_call { "IS" } else { "is NOT" },
-    );
+        TextStyle::Technical => format!(
+            "Call analysis: Pot after call = {} chips. You are calling {bet} chips. \
+             Required equity = {bet}/{} = {:.1}%. \
+             Approximate {draw_type_label} equity with 2 streets = {:.1}%. \
+             {} Therefore calling {} correct here.",
+            pot + bet,
+            pot + bet,
+            req_eq * 100.0,
+            actual_eq * 100.0,
+            if should_call {
+                "Your equity EXCEEDS the required equity."
+            } else {
+                "Your equity is BELOW the required equity."
+            },
+            if should_call { "IS" } else { "is NOT" },
+        ),
+    };
+
+    let fold_explanation = match text_style {
+        TextStyle::Simple => if !should_call {
+            format!(
+                "Correct — fold. Your hand ({draw_type_simple_label}) only improves roughly {:.0}% of the time, and the price to call is too high for those odds. Save your chips.",
+                actual_eq * 100.0
+            )
+        } else {
+            format!(
+                "Folding is wrong here — your hand has a good enough chance of improving to make this call worth it."
+            )
+        },
+        TextStyle::Technical => format!(
+            "Fold analysis: You need {:.1}% equity to call (calling {bet} into a pot of {} chips). \
+             Your {draw_type_label} has approximately {:.1}% equity with 2 cards to come. \
+             {} Folding {} correct.",
+            req_eq * 100.0,
+            pot + bet,
+            actual_eq * 100.0,
+            if !should_call {
+                "Since your equity is below the break-even threshold, folding preserves chips."
+            } else {
+                "However, folding here discards positive expected value since your draw \
+                 exceeds the required equity."
+            },
+            if !should_call { "IS" } else { "is NOT" },
+        ),
+    };
 
     let answers = vec![
         AnswerOption {

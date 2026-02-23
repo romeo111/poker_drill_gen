@@ -4,7 +4,7 @@ use crate::training_engine::{
     evaluator::{has_flush_draw, has_straight_draw},
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -24,6 +24,15 @@ impl std::fmt::Display for DrawType {
             DrawType::OESD      => write!(f, "open-ended straight draw"),
             DrawType::GutShot   => write!(f, "gutshot straight draw"),
         }
+    }
+}
+
+fn draw_type_simple(dt: DrawType) -> &'static str {
+    match dt {
+        DrawType::ComboDraw => "two-way draw (flush or straight possible)",
+        DrawType::FlushDraw => "flush draw (you need one more card of the same suit to make a flush)",
+        DrawType::OESD      => "straight draw (you can complete a straight on either end)",
+        DrawType::GutShot   => "inside straight draw (only one card completes your straight)",
     }
 }
 
@@ -51,6 +60,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
 
@@ -90,6 +100,10 @@ pub fn generate<R: Rng>(
     let pos_str = format!("{}", hero_pos);
     let equity = draw_equity_flop(draw_type);
     let position_label = if hero_is_ip { "in position" } else { "out of position" };
+    let position_label_simple = if hero_is_ip { "acting last (good position)" } else { "acting first (tough position)" };
+
+    let draw_type_label = format!("{}", draw_type);
+    let draw_type_simple_label = draw_type_simple(draw_type);
 
     // Correct answer (single ID):
     // ComboDraw         → "C" (Raise — near-favourite, maximise pressure)
@@ -104,79 +118,124 @@ pub fn generate<R: Rng>(
         DrawType::GutShot                           => "A",
     };
 
-    let question = format!(
-        "You hold {hand_str} and have a {draw_type} on the flop {board_str}. \
-         You are {position_label} ({pos_str}, {stack_bb} BB deep). \
-         Villain bets {villain_bet} chips ({villain_bet_pct}% pot). \
-         Pot is {pot} chips ({pot_bb} BB). \
-         Your {draw_type} has ~{:.0}% equity. What do you do?",
-        equity * 100.0
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "You have {hand_str} and are chasing a {draw_type_simple_label} after the first three cards: {board_str}. \
+             You're {position_label_simple}. Your opponent bet {villain_bet} chips. \
+             Pot: {pot} chips. Your draw wins roughly {:.0}% of the time. What do you do?",
+            equity * 100.0
+        ),
+        TextStyle::Technical => format!(
+            "You hold {hand_str} and have a {draw_type_label} on the flop {board_str}. \
+             You are {position_label} ({pos_str}, {stack_bb} BB deep). \
+             Villain bets {villain_bet} chips ({villain_bet_pct}% pot). \
+             Pot is {pot} chips ({pot_bb} BB). \
+             Your {draw_type_label} has ~{:.0}% equity. What do you do?",
+            equity * 100.0
+        ),
+    };
 
     // --- Explanations ---
 
-    let fold_exp = if matches!(draw_type, DrawType::GutShot) {
-        format!(
-            "Correct. A gutshot (~17% equity) gives you roughly 4 outs. \
-             To call {villain_bet} chips into a {}-chip pot you need {:.1}% equity — \
-             your draw falls well short at 17%. Even with implied odds, a gutshot \
-             rarely justifies the call, and raising as a semi-bluff risks too many \
-             chips with insufficient raw equity.",
-            pot + villain_bet,
-            villain_bet as f32 / (pot + villain_bet) as f32 * 100.0
-        )
-    } else {
-        format!(
-            "Folding a {draw_type} (~{:.0}% equity) is too tight here. You have enough \
-             equity to continue — either by calling to realise it, or raising as a \
-             semi-bluff when conditions are right.",
-            equity * 100.0
-        )
+    let fold_exp = match text_style {
+        TextStyle::Simple => if matches!(draw_type, DrawType::GutShot) {
+            format!(
+                "Correct — fold. An inside straight draw only wins about 17% of the time (roughly 1 in 6). The price to call is too high for those odds. Save your chips."
+            )
+        } else {
+            format!(
+                "Folding is a mistake — your {draw_type_simple_label} wins often enough to continue."
+            )
+        },
+        TextStyle::Technical => if matches!(draw_type, DrawType::GutShot) {
+            format!(
+                "Correct. A gutshot (~17% equity) gives you roughly 4 outs. \
+                 To call {villain_bet} chips into a {}-chip pot you need {:.1}% equity — \
+                 your draw falls well short at 17%. Even with implied odds, a gutshot \
+                 rarely justifies the call, and raising as a semi-bluff risks too many \
+                 chips with insufficient raw equity.",
+                pot + villain_bet,
+                villain_bet as f32 / (pot + villain_bet) as f32 * 100.0
+            )
+        } else {
+            format!(
+                "Folding a {draw_type_label} (~{:.0}% equity) is too tight here. You have enough \
+                 equity to continue — either by calling to realise it, or raising as a \
+                 semi-bluff when conditions are right.",
+                equity * 100.0
+            )
+        },
     };
 
-    let call_exp = match (draw_type, hero_is_ip, correct) {
-        (DrawType::FlushDraw, true, "B") => format!(
-            "Correct. Calling with a {draw_type} (~{:.0}% equity) from {pos_str} (IP) is \
-             the best play. You have position to control the pot on future streets — check \
-             back or bet when you hit, give up cheaply when you miss. Raising risks bloating \
-             the pot without the positional advantage needed to navigate it well.",
-            equity * 100.0
-        ),
-        (DrawType::FlushDraw, false, "B") | (DrawType::OESD, _, "B") => format!(
-            "Correct. Calling with a {draw_type} (~{:.0}% equity) {position_label} is correct \
-             here. Your stack depth ({stack_bb} BB) and/or position make a semi-bluff raise \
-             suboptimal — calling lets you realise equity without bloating the pot OOP or \
-             risking a re-raise at shallow depth.",
-            equity * 100.0
-        ),
-        _ => format!(
-            "Calling is an option but not the highest-EV line here. With a {draw_type} \
-             (~{:.0}% equity) {position_label}, a semi-bluff raise to {raise_size} chips \
-             adds fold equity on top of your draw equity, making raising more profitable.",
-            equity * 100.0
-        ),
+    let call_exp = match text_style {
+        TextStyle::Simple => match (draw_type, hero_is_ip, correct) {
+            (DrawType::FlushDraw, true, "B") => format!(
+                "Correct — call. You have a flush draw (~35% chance) and you're in good position (acting last). Call and see the next card — if you hit your flush you can bet big."
+            ),
+            (DrawType::FlushDraw, false, "B") | (DrawType::OESD, _, "B") => format!(
+                "Correct — call. Your draw wins enough of the time to make calling worth it here. Just calling is safer than raising when you're acting first."
+            ),
+            _ => format!(
+                "Calling is an option, but raising with your {draw_type_simple_label} puts more pressure on your opponent and wins the pot more often."
+            ),
+        },
+        TextStyle::Technical => match (draw_type, hero_is_ip, correct) {
+            (DrawType::FlushDraw, true, "B") => format!(
+                "Correct. Calling with a {draw_type_label} (~{:.0}% equity) from {pos_str} (IP) is \
+                 the best play. You have position to control the pot on future streets — check \
+                 back or bet when you hit, give up cheaply when you miss. Raising risks bloating \
+                 the pot without the positional advantage needed to navigate it well.",
+                equity * 100.0
+            ),
+            (DrawType::FlushDraw, false, "B") | (DrawType::OESD, _, "B") => format!(
+                "Correct. Calling with a {draw_type_label} (~{:.0}% equity) {position_label} is correct \
+                 here. Your stack depth ({stack_bb} BB) and/or position make a semi-bluff raise \
+                 suboptimal — calling lets you realise equity without bloating the pot OOP or \
+                 risking a re-raise at shallow depth.",
+                equity * 100.0
+            ),
+            _ => format!(
+                "Calling is an option but not the highest-EV line here. With a {draw_type_label} \
+                 (~{:.0}% equity) {position_label}, a semi-bluff raise to {raise_size} chips \
+                 adds fold equity on top of your draw equity, making raising more profitable.",
+                equity * 100.0
+            ),
+        },
     };
 
-    let raise_exp = match (draw_type, hero_is_ip, correct) {
-        (DrawType::ComboDraw, _, "C") => format!(
-            "Correct. Raising to {raise_size} chips (2.5× villain's {villain_bet}) with a \
-             {draw_type} on {board_str} is the highest-EV play. Your combo draw has ~54% \
-             equity — you are a slight favourite! Raising wins the pot outright when villain \
-             folds (~40% of the time) and builds a large pot when villain calls into your \
-             equity edge. Never just call with a combo draw when you can apply maximum pressure."
-        ),
-        (DrawType::OESD, _, "C") => format!(
-            "Correct. Raising to {raise_size} chips (2.5× villain's {villain_bet}) with an \
-             {draw_type} at {stack_bb} BB depth is correct. Your OESD has ~32% equity plus \
-             significant fold equity: villain must fold hands like top pair to avoid getting \
-             stacked. At {stack_bb} BB the semi-bluff raise sets up a profitable shove on \
-             the turn or a clean check when you miss.",
-        ),
-        _ => format!(
-            "Raising to {raise_size} chips as a semi-bluff with a {draw_type} \
-             {position_label} is too aggressive here. You risk building a large pot \
-             without sufficient equity to back it up. Calling is the stronger line."
-        ),
+    let raise_exp = match text_style {
+        TextStyle::Simple => match (draw_type, hero_is_ip, correct) {
+            (DrawType::ComboDraw, _, "C") => format!(
+                "Correct — raise to {raise_size} chips! Your two-way draw wins about 54% of the time — you're actually a slight favourite! Raising wins the pot right now if your opponent folds, or builds a big pot when you're favoured."
+            ),
+            (DrawType::OESD, _, "C") => format!(
+                "Correct — raise to {raise_size} chips! A straight draw on both ends wins about 32% of the time, plus raising might make your opponent fold right now. The raise pays off whether they fold or call."
+            ),
+            _ => format!(
+                "Raising here is too risky. Your draw doesn't win often enough to justify putting in so many chips. Just call."
+            ),
+        },
+        TextStyle::Technical => match (draw_type, hero_is_ip, correct) {
+            (DrawType::ComboDraw, _, "C") => format!(
+                "Correct. Raising to {raise_size} chips (2.5× villain's {villain_bet}) with a \
+                 {draw_type_label} on {board_str} is the highest-EV play. Your combo draw has ~54% \
+                 equity — you are a slight favourite! Raising wins the pot outright when villain \
+                 folds (~40% of the time) and builds a large pot when villain calls into your \
+                 equity edge. Never just call with a combo draw when you can apply maximum pressure."
+            ),
+            (DrawType::OESD, _, "C") => format!(
+                "Correct. Raising to {raise_size} chips (2.5× villain's {villain_bet}) with an \
+                 {draw_type_label} at {stack_bb} BB depth is correct. Your OESD has ~32% equity plus \
+                 significant fold equity: villain must fold hands like top pair to avoid getting \
+                 stacked. At {stack_bb} BB the semi-bluff raise sets up a profitable shove on \
+                 the turn or a clean check when you miss."
+            ),
+            _ => format!(
+                "Raising to {raise_size} chips as a semi-bluff with a {draw_type_label} \
+                 {position_label} is too aggressive here. You risk building a large pot \
+                 without sufficient equity to back it up. Calling is the stronger line."
+            ),
+        },
     };
 
     let answers = vec![

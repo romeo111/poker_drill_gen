@@ -13,6 +13,7 @@
 //!     topic: TrainingTopic::PreflopDecision,
 //!     difficulty: DifficultyLevel::Intermediate,
 //!     rng_seed: Some(42),
+//!     text_style: Default::default(), // TextStyle::Simple
 //! });
 //!
 //! println!("Scenario: {}", scenario.scenario_id);
@@ -28,7 +29,7 @@ pub mod nt_adapter;
 // Convenience re-exports at crate root.
 pub use training_engine::{
     generate_training, AnswerOption, DifficultyLevel, GameType,
-    PlayerState, Position, TableSetup, TrainingRequest,
+    PlayerState, Position, TableSetup, TextStyle, TrainingRequest,
     TrainingScenario, TrainingTopic,
 };
 pub use nt_adapter::to_nt_table_state;

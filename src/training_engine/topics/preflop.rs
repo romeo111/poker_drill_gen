@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -120,6 +120,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let is_6max = rng.gen_bool(0.5);
     let table_size = if is_6max { 6usize } else { 9 };
@@ -158,7 +159,7 @@ pub fn generate<R: Rng>(
 
     let bb = 2u32;
     let (pot_size, current_bet, question, answers) =
-        build_spot(rng, spot, hero_pos, hero_cards, effective_stack, bb, difficulty, table_size);
+        build_spot(rng, spot, hero_pos, hero_cards, effective_stack, bb, difficulty, table_size, text_style);
 
     let table_setup = TableSetup {
         game_type: GameType::CashGame,
@@ -193,6 +194,7 @@ fn build_spot<R: Rng>(
     bb: u32,
     _difficulty: DifficultyLevel,
     table_size: usize,
+    text_style: TextStyle,
 ) -> (u32, u32, String, Vec<AnswerOption>) {
     let cat = classify_hand(hand);
     let cat_name = hand_category_name(cat);
@@ -205,10 +207,16 @@ fn build_spot<R: Rng>(
         PreflopSpot::OpenRaise => {
             let pot = bb + bb / 2; // SB + BB already in
             let open_size = if stack_bb >= 40 { bb * 3 } else { bb * 2 };
-            let q = format!(
-                "You hold {hand_str} in {pos_str} at a {table_size}-handed table. \
-                 Effective stack is {stack_bb} BB. Action folds to you. What is your action?"
-            );
+            let q = match text_style {
+                TextStyle::Simple => format!(
+                    "You have {hand_str} in {pos_str} at a {table_size}-handed table. \
+                     Stack: {stack_bb} big blinds. Everyone before you folded. What do you do?"
+                ),
+                TextStyle::Technical => format!(
+                    "You hold {hand_str} in {pos_str} at a {table_size}-handed table. \
+                     Effective stack is {stack_bb} BB. Action folds to you. What is your action?"
+                ),
+            };
             // Single correct answer: raise if hand is strong enough, fold otherwise.
             // Limping is never correct here.
             let should_raise = matches!(cat, HandCategory::Premium | HandCategory::Strong)
@@ -236,30 +244,49 @@ fn build_spot<R: Rng>(
                     id: "A".to_string(),
                     text: "Fold".to_string(),
                     is_correct: correct == "A",
-                    explanation: format!(
-                        "Folding {hand_str} ({cat_name}) from {pos_str} with {stack_bb} BB: \
-                         {fold_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "A" {
+                            format!("Correct. {hand_str} is too weak for {pos_str}. Folding saves your chips for a better hand.")
+                        } else {
+                            format!("Folding is a mistake here. {hand_str} is strong enough to bet from {pos_str}. Don't throw away the opportunity.")
+                        },
+                        TextStyle::Technical => format!(
+                            "Folding {hand_str} ({cat_name}) from {pos_str} with {stack_bb} BB: \
+                             {fold_body}"
+                        ),
+                    },
                 },
                 AnswerOption {
                     id: "B".to_string(),
                     text: format!("Raise to {} BB", open_size / bb),
                     is_correct: correct == "B",
-                    explanation: format!(
-                        "Raising to {open_size} chips ({} BB) with {hand_str} ({cat_name}) \
-                         from {pos_str}: {raise_body}",
-                        open_size / bb
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "B" {
+                            format!("Raise! {hand_str} is a good hand in {pos_str}. Bet {open_size} chips and take control of the pot.")
+                        } else {
+                            format!("Raising is too risky here — {hand_str} isn't strong enough from {pos_str} with {stack_bb} big blinds. Fold instead.")
+                        },
+                        TextStyle::Technical => format!(
+                            "Raising to {open_size} chips ({} BB) with {hand_str} ({cat_name}) \
+                             from {pos_str}: {raise_body}",
+                            open_size / bb
+                        ),
+                    },
                 },
                 AnswerOption {
                     id: "C".to_string(),
                     text: "Call".to_string(),
                     is_correct: false,
-                    explanation: format!(
-                        "Limping with {hand_str} from {pos_str}: In most cash game formats \
-                         limping is a leak — it invites multiway pots with no initiative, \
-                         weakening your range and giving the BB a free squeeze opportunity."
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => format!(
+                            "Just calling the big blind here is a bad idea. It lets everyone in cheaply, and you lose control of the hand. Either raise or fold."
+                        ),
+                        TextStyle::Technical => format!(
+                            "Limping with {hand_str} from {pos_str}: In most cash game formats \
+                             limping is a leak — it invites multiway pots with no initiative, \
+                             weakening your range and giving the BB a free squeeze opportunity."
+                        ),
+                    },
                 },
             ];
             (pot, 0, q, answers)
@@ -270,11 +297,18 @@ fn build_spot<R: Rng>(
             let raiser_size = if stack_bb >= 40 { bb * 3 } else { bb * 2 };
             let pot = bb / 2 + bb + raiser_size; // SB + BB + open
             let three_bet = raiser_size * 3;
-            let q = format!(
-                "You hold {hand_str} in {pos_str} ({stack_bb} BB deep). \
-                 A player raises to {} BB. Action is on you. What do you do?",
-                raiser_size / bb
-            );
+            let q = match text_style {
+                TextStyle::Simple => format!(
+                    "You have {hand_str} in {pos_str} ({stack_bb} big blinds). \
+                     Someone raised to {} big blinds. What do you do?",
+                    raiser_size / bb
+                ),
+                TextStyle::Technical => format!(
+                    "You hold {hand_str} in {pos_str} ({stack_bb} BB deep). \
+                     A player raises to {} BB. Action is on you. What do you do?",
+                    raiser_size / bb
+                ),
+            };
             // Single correct answer to guarantee invariant.
             let correct = match cat {
                 HandCategory::Premium  => "C",  // 3-bet for value
@@ -315,26 +349,49 @@ fn build_spot<R: Rng>(
                     id: "A".to_string(),
                     text: "Fold".to_string(),
                     is_correct: correct == "A",
-                    explanation: format!(
-                        "Folding {hand_str} ({cat_name}) vs a raise from {pos_str}: {fold_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "A" {
+                            format!("Correct. {hand_str} from {pos_str} isn't strong enough to call or re-raise here. Save your chips.")
+                        } else {
+                            format!("Folding is too cautious — {hand_str} is good enough to continue here.")
+                        },
+                        TextStyle::Technical => format!(
+                            "Folding {hand_str} ({cat_name}) vs a raise from {pos_str}: {fold_body}"
+                        ),
+                    },
                 },
                 AnswerOption {
                     id: "B".to_string(),
                     text: "Call".to_string(),
                     is_correct: correct == "B",
-                    explanation: format!(
-                        "Calling with {hand_str} ({cat_name}) in {pos_str}: {call_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "B" {
+                            format!("Correct. Call with {hand_str} from {pos_str}. You have a decent hand and a good position — see the flop.")
+                        } else if correct == "A" {
+                            format!("Calling with {hand_str} isn't worth it — this hand can't beat a raise. Fold.")
+                        } else {
+                            format!("Calling is too passive here — re-raise with {hand_str} to build the pot while you have the advantage.")
+                        },
+                        TextStyle::Technical => format!(
+                            "Calling with {hand_str} ({cat_name}) in {pos_str}: {call_body}"
+                        ),
+                    },
                 },
                 AnswerOption {
                     id: "C".to_string(),
                     text: format!("Raise to {} BB", three_bet / bb),
                     is_correct: correct == "C",
-                    explanation: format!(
-                        "3-betting to {three_bet} with {hand_str} ({cat_name}) from \
-                         {pos_str}: {threebet_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "C" {
+                            format!("Re-raise! {hand_str} from {pos_str} is strong enough to bet big. This builds the pot when you have the best hand.")
+                        } else {
+                            format!("Re-raising {hand_str} here is too risky. You'd be putting in a lot of chips with a hand that isn't strong enough.")
+                        },
+                        TextStyle::Technical => format!(
+                            "3-betting to {three_bet} with {hand_str} ({cat_name}) from \
+                             {pos_str}: {threebet_body}"
+                        ),
+                    },
                 },
             ];
             (pot, raiser_size, q, answers)
@@ -346,12 +403,20 @@ fn build_spot<R: Rng>(
             let three_bet_size = hero_open * 3;
             let pot = bb / 2 + bb + hero_open + three_bet_size;
             let four_bet = three_bet_size * 3;
-            let q = format!(
-                "You opened to {} BB with {hand_str} from {pos_str} \
-                 ({stack_bb} BB deep). A player re-raises to {} BB. What do you do?",
-                hero_open / bb,
-                three_bet_size / bb
-            );
+            let q = match text_style {
+                TextStyle::Simple => format!(
+                    "You bet {} big blinds with {hand_str} from {pos_str} \
+                     ({stack_bb} big blinds). Your opponent re-raised to {} big blinds. What do you do?",
+                    hero_open / bb,
+                    three_bet_size / bb
+                ),
+                TextStyle::Technical => format!(
+                    "You opened to {} BB with {hand_str} from {pos_str} \
+                     ({stack_bb} BB deep). A player re-raises to {} BB. What do you do?",
+                    hero_open / bb,
+                    three_bet_size / bb
+                ),
+            };
             let correct = match cat {
                 HandCategory::Premium  => "C", // 4-bet for value
                 HandCategory::Strong   => "B", // call or small 4-bet
@@ -390,26 +455,47 @@ fn build_spot<R: Rng>(
                     id: "A".to_string(),
                     text: "Fold".to_string(),
                     is_correct: correct == "A",
-                    explanation: format!(
-                        "Folding {hand_str} ({cat_name}) vs 3-bet: {fold_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "A" {
+                            format!("Correct. {hand_str} can't beat your opponent's re-raise range profitably. Let this one go.")
+                        } else {
+                            format!("Folding here is too cautious — you have enough of a hand to continue.")
+                        },
+                        TextStyle::Technical => format!(
+                            "Folding {hand_str} ({cat_name}) vs 3-bet: {fold_body}"
+                        ),
+                    },
                 },
                 AnswerOption {
                     id: "B".to_string(),
                     text: "Call".to_string(),
                     is_correct: correct == "B",
-                    explanation: format!(
-                        "Calling the 3-bet with {hand_str} ({cat_name}) from {pos_str}: \
-                         {call_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "B" {
+                            format!("Correct. Call and see the flop. {hand_str} has good enough potential and you keep the pot manageable.")
+                        } else {
+                            format!("Just calling here wastes the opportunity — re-raise for value with this strong hand.")
+                        },
+                        TextStyle::Technical => format!(
+                            "Calling the 3-bet with {hand_str} ({cat_name}) from {pos_str}: \
+                             {call_body}"
+                        ),
+                    },
                 },
                 AnswerOption {
                     id: "C".to_string(),
                     text: format!("Raise to {} BB", four_bet / bb),
                     is_correct: correct == "C",
-                    explanation: format!(
-                        "4-betting with {hand_str} ({cat_name}): {fourbet_body}"
-                    ),
+                    explanation: match text_style {
+                        TextStyle::Simple => if correct == "C" {
+                            format!("Correct. Re-raise again! {hand_str} is a premium hand. Build the pot — you have the best of it here.")
+                        } else {
+                            format!("Re-raising here puts too many chips at risk with {hand_str}. Call or fold instead.")
+                        },
+                        TextStyle::Technical => format!(
+                            "4-betting with {hand_str} ({cat_name}): {fourbet_body}"
+                        ),
+                    },
                 },
             ];
             (pot, three_bet_size, q, answers)

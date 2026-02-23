@@ -3,7 +3,7 @@ use crate::training_engine::{
     deck::Deck,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
-        Position, TableSetup, TrainingScenario, TrainingTopic,
+        Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
 
@@ -37,6 +37,7 @@ pub fn generate<R: Rng>(
     rng: &mut R,
     difficulty: DifficultyLevel,
     scenario_id: String,
+    text_style: TextStyle,
 ) -> TrainingScenario {
     let mut deck = Deck::new_shuffled(rng);
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
@@ -90,13 +91,21 @@ pub fn generate<R: Rng>(
     let fold_freq_large = required_fold_frequency(large_bet, pot);
     let fold_freq_shove = required_fold_frequency(shove, pot);
 
-    let question = format!(
-        "River spot. You hold {hand_str} ({bluff_type}) on {pos_str}. \
-         Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). \
-         Stack: {stack} chips (SPR = {spr:.1}). Villain checks to you. \
-         Bet options: small ({small_bet} chips ~40% pot), large ({large_bet} chips ~75% pot), \
-         or shove ({shove} chips). What do you do?"
-    );
+    let question = match text_style {
+        TextStyle::Simple => format!(
+            "Last card. You have {hand_str} and missed — your hand can't win at showdown. \
+             Board: {board_str}. Pot: {pot} chips. Stack: {stack} chips. \
+             Your opponent checks to you. Options: check, bet small ({small_bet} chips), \
+             bet big ({large_bet} chips), go all-in ({shove} chips). What do you do?"
+        ),
+        TextStyle::Technical => format!(
+            "River spot. You hold {hand_str} ({bluff_type}) on {pos_str}. \
+             Board: {board_str}. Pot: {pot} chips ({pot_bb} BB). \
+             Stack: {stack} chips (SPR = {spr:.1}). Villain checks to you. \
+             Bet options: small ({small_bet} chips ~40% pot), large ({large_bet} chips ~75% pot), \
+             or shove ({shove} chips). What do you do?"
+        ),
+    };
 
     let check_body = if correct_id == "A" {
         format!(
@@ -119,57 +128,83 @@ pub fn generate<R: Rng>(
             id: "A".to_string(),
             text: "Check".to_string(),
             is_correct: correct_id == "A",
-            explanation: format!("Checking with a {bluff_type} from {pos_str}: {check_body}"),
+            explanation: match text_style {
+                TextStyle::Simple => if correct_id == "A" {
+                    format!("Correct — check. Your opponent will call any bet you make here, so betting loses more chips than checking.")
+                } else {
+                    format!("Checking gives up — you have no chance to win at showdown, so a bet is your only way to take this pot.")
+                },
+                TextStyle::Technical => format!("Checking with a {bluff_type} from {pos_str}: {check_body}"),
+            },
         },
         AnswerOption {
             id: "B".to_string(),
             text: "Bet small".to_string(),
             is_correct: correct_id == "B",
-            explanation: format!(
-                "Small bluff ({small_bet} chips) with {hand_str} ({bluff_type}): \
-                 Requires villain to fold {:.1}% of the time to break even. \
-                 {}",
-                fold_freq_small * 100.0,
-                if correct_id == "B" {
-                    "A small bet size is appropriate here — it achieves fold equity at \
-                     minimal risk and keeps you unexploitable."
+            explanation: match text_style {
+                TextStyle::Simple => if correct_id == "B" {
+                    format!("A small bet works here — it puts just enough pressure on your opponent to fold weak hands.")
                 } else {
-                    "A small bluff is unlikely to fold out strong hands. Either check \
-                     or bet large enough to credibly represent your value range."
-                }
-            ),
+                    format!("A small bet won't scare your opponent into folding. Either bet big enough to be threatening or just check.")
+                },
+                TextStyle::Technical => format!(
+                    "Small bluff ({small_bet} chips) with {hand_str} ({bluff_type}): \
+                     Requires villain to fold {:.1}% of the time to break even. \
+                     {}",
+                    fold_freq_small * 100.0,
+                    if correct_id == "B" {
+                        "A small bet size is appropriate here — it achieves fold equity at \
+                         minimal risk and keeps you unexploitable."
+                    } else {
+                        "A small bluff is unlikely to fold out strong hands. Either check \
+                         or bet large enough to credibly represent your value range."
+                    }
+                ),
+            },
         },
         AnswerOption {
             id: "C".to_string(),
             text: "Bet large".to_string(),
             is_correct: correct_id == "C",
-            explanation: format!(
-                "Large bluff ({large_bet} chips) with {hand_str} ({bluff_type}): \
-                 Requires villain to fold {:.1}% of the time to break even. \
-                 SPR = {spr:.1}. {}",
-                fold_freq_large * 100.0,
-                if correct_id == "C" {
-                    "A 75% pot bluff applies significant pressure and is credible with a \
-                     {bluff_type}. Villain must fold a realistic portion of their range, \
-                     and blockers in your hand make their strong hands less likely."
+            explanation: match text_style {
+                TextStyle::Simple => if correct_id == "C" {
+                    format!("Correct — bet big! You have nothing, so your only way to win is to make your opponent fold. A big bet is the most believable and gives you the best chance they give up.")
                 } else {
-                    "A large bluff here over-commits with no fold equity. At this SPR, \
-                     villain will call too frequently for this sizing to be profitable."
-                }
-            ),
+                    format!("A big bet here throws too many chips away — your opponent isn't folding. Check instead.")
+                },
+                TextStyle::Technical => format!(
+                    "Large bluff ({large_bet} chips) with {hand_str} ({bluff_type}): \
+                     Requires villain to fold {:.1}% of the time to break even. \
+                     SPR = {spr:.1}. {}",
+                    fold_freq_large * 100.0,
+                    if correct_id == "C" {
+                        "A 75% pot bluff applies significant pressure and is credible with a \
+                         {bluff_type}. Villain must fold a realistic portion of their range, \
+                         and blockers in your hand make their strong hands less likely."
+                    } else {
+                        "A large bluff here over-commits with no fold equity. At this SPR, \
+                         villain will call too frequently for this sizing to be profitable."
+                    }
+                ),
+            },
         },
         AnswerOption {
             id: "D".to_string(),
             text: "All-in".to_string(),
             is_correct: false,
-            explanation: format!(
-                "Shoving {shove} chips with {hand_str} ({bluff_type}): \
-                 Requires villain to fold {:.1}% of the time. \
-                 A pot-sized or overbet shove can be valid with a polarized range and \
-                 nut blockers, but is generally too large here unless SPR < 1.5 \
-                 and villain's range is very capped.",
-                fold_freq_shove * 100.0
-            ),
+            explanation: match text_style {
+                TextStyle::Simple => format!(
+                    "Going all-in here is too extreme. Unless you have almost no chips left compared to the pot, a well-sized big bet does the same job at lower risk."
+                ),
+                TextStyle::Technical => format!(
+                    "Shoving {shove} chips with {hand_str} ({bluff_type}): \
+                     Requires villain to fold {:.1}% of the time. \
+                     A pot-sized or overbet shove can be valid with a polarized range and \
+                     nut blockers, but is generally too large here unless SPR < 1.5 \
+                     and villain's range is very capped.",
+                    fold_freq_shove * 100.0
+                ),
+            },
         },
     ];
 
