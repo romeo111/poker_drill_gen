@@ -13,7 +13,7 @@ cargo run --example demo
 
 ## Project Overview
 Rust library crate that generates randomized poker training scenarios.
-Single external dependency: `rand = "0.8"`.
+Dependencies: `rand = "0.8"`, `serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`.
 
 **Public API:**
 ```rust
@@ -33,7 +33,7 @@ src/
     mod.rs                        ← pub re-exports + sub-mod declarations
     models.rs                     ← all shared types (Card, Position, TrainingScenario, …)
     deck.rs                       ← Deck struct + Fisher-Yates shuffle
-    evaluator.rs                  ← board_texture, pot-odds math, draw equity helpers
+    evaluator.rs                  ← board_texture, pot-odds math, draw equity helpers, hand classification (HandCategory, classify_hand)
     generator.rs                  ← generate_training() dispatch + make_scenario_id()
     topics/
       mod.rs
@@ -46,18 +46,24 @@ src/
       check_raise.rs    (CR-)
       semi_bluff.rs     (SB-)
       anti_limper.rs    (AL-)
+      river_value_bet.rs  (RV-)
+      squeeze_play.rs     (SQ-)
+      big_blind_defense.rs(BD-)
+      three_bet_pot_cbet.rs(3B-)
+      river_call_or_fold.rs(RF-)
+      turn_probe_bet.rs   (PB-)
 examples/
   demo.rs
 docs/
   README.md
-  topics/  ← one .md per topic (01_preflop_decision.md … 09_anti_limper_isolation.md)
+  topics/  ← one .md per topic (01_preflop_decision.md … 15_turn_probe_bet.md)
 ```
 
 ---
 
 ## Key Design Conventions
 - Each topic module has a single public function:
-  `pub fn generate<R: Rng>(rng: &mut R, difficulty: DifficultyLevel, scenario_id: String) -> TrainingScenario`
+  `pub fn generate<R: Rng>(rng: &mut R, difficulty: DifficultyLevel, scenario_id: String, text_style: TextStyle) -> TrainingScenario`
 - **Single correct answer invariant:** use a `correct: &str` ID (`"A"`, `"B"`, or `"C"`) and match it to `AnswerOption.is_correct`. Never mark multiple answers correct.
 - Explanations are dynamically formatted strings — not static templates.
 - `board_texture()` in `evaluator.rs` drives c-bet sizing choices in postflop topics.
@@ -77,11 +83,17 @@ docs/
 | 7 | `CheckRaiseSpot` | `CR-` | Flop | Check-raise vs check-call vs fold (OOP) |
 | 8 | `SemiBluffDecision` | `SB-` | Flop | Raise vs call vs fold with draw |
 | 9 | `AntiLimperIsolation` | `AL-` | Preflop | Iso-raise vs overlimp vs fold |
+| 10 | `RiverValueBet` | `RV-` | River | Value bet sizing vs check |
+| 11 | `SqueezePlay` | `SQ-` | Preflop | Squeeze vs call vs fold |
+| 12 | `BigBlindDefense` | `BD-` | Preflop | 3-bet vs call vs fold from BB |
+| 13 | `ThreeBetPotCbet` | `3B-` | Flop | C-bet sizing in 3-bet pots |
+| 14 | `RiverCallOrFold` | `RF-` | River | Call vs fold vs raise facing river bet |
+| 15 | `TurnProbeBet` | `PB-` | Turn | Probe bet sizing OOP after check-through |
 
 ---
 
 ## Hand Classification (5-category)
-Used in `preflop.rs` and inlined in `anti_limper.rs`:
+Defined in `evaluator.rs` (`HandCategory` enum + `classify_hand()`); used by `preflop.rs` and `anti_limper.rs`:
 - **Premium**: AA, KK, QQ, AKs
 - **Strong**: JJ, TT, AQo, AKo, AQs
 - **Playable**: 99–77, AJs, KQs, suited connectors

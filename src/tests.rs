@@ -2,7 +2,7 @@
 //!
 //! Included from `lib.rs` under `#[cfg(test)]`.
 //!
-//! # Coverage (36 tests)
+//! # Coverage (40 tests)
 //!
 //! | Group | What is tested |
 //! |-------|----------------|
@@ -13,6 +13,8 @@
 //! | Difficulty | All three levels produce valid scenarios |
 //! | Entropy | `rng_seed: None` produces a valid scenario (smoke test) |
 //! | TextStyle | Simple produces non-empty text; Simple ≠ Technical; correct answer unaffected by style |
+//! | ICM hand strength | Push/fold produces both pushes and folds across seeds |
+//! | Hand classification | classify_hand correctly categorises premium, strong, playable, marginal, trash |
 
 use crate::training_engine::{
     generate_training, DifficultyLevel, GameType, Position, TextStyle, TrainingRequest,
@@ -616,5 +618,102 @@ fn turn_probe_bet_has_4_board_cards_and_bb_hero() {
             "TurnProbeBet: hero acts first so current_bet must be 0 (seed={seed})"
         );
     }
+}
+
+// ── ICM hand strength tests ─────────────────────────────────────────────────
+
+#[test]
+fn icm_produces_mix_of_pushes_and_folds() {
+    // Across many seeds, ICM should produce both pushes and folds — confirming
+    // that hand strength and stack depth both affect the decision.
+    let mut push_count = 0usize;
+    let mut fold_count = 0usize;
+    let trials = 200u64;
+
+    for seed in 0..trials {
+        let s = generate_training(req(TrainingTopic::ICMAndTournamentDecision, seed));
+        let correct = s.answers.iter().find(|a| a.is_correct).unwrap();
+        if correct.id == "A" { push_count += 1; } else { fold_count += 1; }
+    }
+    assert!(
+        push_count > 0 && fold_count > 0,
+        "ICM should produce both pushes ({push_count}) and folds ({fold_count}) across {trials} seeds"
+    );
+}
+
+// ── evaluator classify_hand tests ───────────────────────────────────────────
+
+#[test]
+fn classify_hand_premium_pairs() {
+    use crate::training_engine::evaluator::{classify_hand, HandCategory};
+    use crate::training_engine::models::{Card, Rank, Suit};
+
+    // AA
+    let aa = [
+        Card { rank: Rank(14), suit: Suit::Spades },
+        Card { rank: Rank(14), suit: Suit::Hearts },
+    ];
+    assert_eq!(classify_hand(aa), HandCategory::Premium);
+
+    // KK
+    let kk = [
+        Card { rank: Rank(13), suit: Suit::Clubs },
+        Card { rank: Rank(13), suit: Suit::Diamonds },
+    ];
+    assert_eq!(classify_hand(kk), HandCategory::Premium);
+
+    // AKs
+    let aks = [
+        Card { rank: Rank(14), suit: Suit::Hearts },
+        Card { rank: Rank(13), suit: Suit::Hearts },
+    ];
+    assert_eq!(classify_hand(aks), HandCategory::Premium);
+}
+
+#[test]
+fn classify_hand_trash() {
+    use crate::training_engine::evaluator::{classify_hand, HandCategory};
+    use crate::training_engine::models::{Card, Rank, Suit};
+
+    // 72o — quintessential trash
+    let trash = [
+        Card { rank: Rank(7), suit: Suit::Spades },
+        Card { rank: Rank(2), suit: Suit::Hearts },
+    ];
+    assert_eq!(classify_hand(trash), HandCategory::Trash);
+
+    // 83o
+    let trash2 = [
+        Card { rank: Rank(8), suit: Suit::Clubs },
+        Card { rank: Rank(3), suit: Suit::Diamonds },
+    ];
+    assert_eq!(classify_hand(trash2), HandCategory::Trash);
+}
+
+#[test]
+fn classify_hand_strong_and_playable() {
+    use crate::training_engine::evaluator::{classify_hand, HandCategory};
+    use crate::training_engine::models::{Card, Rank, Suit};
+
+    // JJ = Strong
+    let jj = [
+        Card { rank: Rank(11), suit: Suit::Spades },
+        Card { rank: Rank(11), suit: Suit::Hearts },
+    ];
+    assert_eq!(classify_hand(jj), HandCategory::Strong);
+
+    // 88 = Playable
+    let eights = [
+        Card { rank: Rank(8), suit: Suit::Clubs },
+        Card { rank: Rank(8), suit: Suit::Diamonds },
+    ];
+    assert_eq!(classify_hand(eights), HandCategory::Playable);
+
+    // 33 = Marginal
+    let threes = [
+        Card { rank: Rank(3), suit: Suit::Clubs },
+        Card { rank: Rank(3), suit: Suit::Diamonds },
+    ];
+    assert_eq!(classify_hand(threes), HandCategory::Marginal);
 }
 

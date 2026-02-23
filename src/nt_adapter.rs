@@ -202,8 +202,8 @@ pub fn to_nt_table_state(scenario: &TrainingScenario, hero_player_id: u32) -> Va
                 "seat_idx_sb": sb_seat,
                 "seat_idx_button": btn_seat,
                 "pot": [pot],
-                "sb_amount": (pot * 0.0) as f64,  // not meaningful for drills
-                "bb_amount": (pot * 0.0) as f64,
+                "sb_amount": 1.0_f64,
+                "bb_amount": 2.0_f64,
                 "action_time_limit": { "secs": 0, "nanos": 0 },
                 "delay_type": "UserActionDelay",
                 "pool_type": "CommonHoldem",

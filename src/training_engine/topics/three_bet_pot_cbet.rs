@@ -9,7 +9,7 @@ use crate::training_engine::{
 
 /// Flop texture in a 3-bet pot continuation-bet spot.
 #[derive(Debug, Clone, Copy)]
-enum BoardTexture {
+enum FlopTexture {
     Dry, // Rainbow, uncoordinated — villain's calling range hits infrequently
     Wet, // Two-tone or connected — villain has many draws and top pairs
 }
@@ -21,11 +21,11 @@ enum FlopStrength {
     Weak,   // Missed, underpair to board — consider giving up
 }
 
-impl std::fmt::Display for BoardTexture {
+impl std::fmt::Display for FlopTexture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BoardTexture::Dry => write!(f, "dry (rainbow, uncoordinated)"),
-            BoardTexture::Wet => write!(f, "wet (two-tone / connected)"),
+            FlopTexture::Dry => write!(f, "dry (rainbow, uncoordinated)"),
+            FlopTexture::Wet => write!(f, "wet (two-tone / connected)"),
         }
     }
 }
@@ -49,7 +49,7 @@ pub fn generate<R: Rng>(
     let hero_hand: [Card; 2] = [deck.deal(), deck.deal()];
     let board: Vec<Card> = deck.deal_n(3);
 
-    let texture  = if rng.gen_bool(0.5) { BoardTexture::Dry } else { BoardTexture::Wet };
+    let texture  = if rng.gen_bool(0.5) { FlopTexture::Dry } else { FlopTexture::Wet };
     let fstrength = if rng.gen_bool(0.5) { FlopStrength::Strong } else { FlopStrength::Weak };
 
     let bb = 2u32;
@@ -76,10 +76,10 @@ pub fn generate<R: Rng>(
     // Any + Weak   → check: no equity; in a low-SPR pot any bet is a large commitment
     //               that is hard to fold to a raise.
     let (correct, branch_key): (&str, &str) = match (texture, fstrength) {
-        (BoardTexture::Dry, FlopStrength::Strong) => ("B", "Dry:Strong:SmallCbet"),
-        (BoardTexture::Wet, FlopStrength::Strong) => ("C", "Wet:Strong:LargeCbet"),
-        (BoardTexture::Dry, FlopStrength::Weak)   => ("A", "Dry:Weak:Check"),
-        (BoardTexture::Wet, FlopStrength::Weak)   => ("A", "Wet:Weak:Check"),
+        (FlopTexture::Dry, FlopStrength::Strong) => ("B", "Dry:Strong:SmallCbet"),
+        (FlopTexture::Wet, FlopStrength::Strong) => ("C", "Wet:Strong:LargeCbet"),
+        (FlopTexture::Dry, FlopStrength::Weak)   => ("A", "Dry:Weak:Check"),
+        (FlopTexture::Wet, FlopStrength::Weak)   => ("A", "Wet:Weak:Check"),
     };
     let branch_key = branch_key.to_string();
 
@@ -138,10 +138,10 @@ pub fn generate<R: Rng>(
             is_correct: correct == "B",
             explanation: match text_style {
                 TextStyle::Simple => match (texture, fstrength) {
-                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                    (FlopTexture::Dry, FlopStrength::Strong) => format!(
                         "Correct — bet small. The board is dry (no likely draws). A small bet is enough to collect chips and keep pressure on."
                     ),
-                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                    (FlopTexture::Wet, FlopStrength::Strong) => format!(
                         "A small bet isn't enough on this type of board. Bet bigger or check."
                     ),
                     _ => format!(
@@ -149,14 +149,14 @@ pub fn generate<R: Rng>(
                     ),
                 },
                 TextStyle::Technical => match (texture, fstrength) {
-                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                    (FlopTexture::Dry, FlopStrength::Strong) => format!(
                         "Correct. A small c-bet (~33% pot) with a {fstrength} on a {texture} board \
                          is optimal. Dry boards miss villain's wide BB calling range frequently, \
                          so a small probe achieves two goals: it extracts value from any pair or \
                          draw while — given SPR ~{spr:.1} — starting to build toward a natural \
                          stack commitment. Villain must act immediately with limited backdoor outs."
                     ),
-                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                    (FlopTexture::Wet, FlopStrength::Strong) => format!(
                         "A small c-bet on a {texture} board undersizes the protection needed. \
                          Villain has many draws (flush draws, straight draws) that can call 33% \
                          cheaply and realise equity. A larger bet (~67%) forces them to pay the \
@@ -176,10 +176,10 @@ pub fn generate<R: Rng>(
             is_correct: correct == "C",
             explanation: match text_style {
                 TextStyle::Simple => match (texture, fstrength) {
-                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                    (FlopTexture::Wet, FlopStrength::Strong) => format!(
                         "Correct — bet big! The board has possible draws. Make your opponent pay dearly to chase them."
                     ),
-                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                    (FlopTexture::Dry, FlopStrength::Strong) => format!(
                         "Betting big here is too much — a check or small bet fits this situation better."
                     ),
                     _ => format!(
@@ -187,13 +187,13 @@ pub fn generate<R: Rng>(
                     ),
                 },
                 TextStyle::Technical => match (texture, fstrength) {
-                    (BoardTexture::Wet, FlopStrength::Strong) => format!(
+                    (FlopTexture::Wet, FlopStrength::Strong) => format!(
                         "Correct. A large c-bet (~67% pot) with a {fstrength} on a {texture} board \
                          is the highest-EV line. Wet boards give villain flush draws, straight draws, \
                          and top pairs. Betting large charges every draw immediately, denies cheap \
                          equity, and naturally commits the remaining stack at SPR ~{spr:.1}."
                     ),
-                    (BoardTexture::Dry, FlopStrength::Strong) => format!(
+                    (FlopTexture::Dry, FlopStrength::Strong) => format!(
                         "A large c-bet on a {texture} board slightly over-bets the situation. \
                          Dry boards rarely hit villain's calling range — a smaller bet (33%) \
                          achieves the same fold equity while sizing more accurately to the \

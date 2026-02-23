@@ -35,14 +35,49 @@ fn random_stage<R: Rng>(rng: &mut R) -> TournamentStage {
     }
 }
 
-/// Simplified ICM pressure: how many BB hero needs to profitably shove.
+/// Hand strength tiers for push/fold (simplified).
+#[derive(Debug, Clone, Copy)]
+enum PushTier {
+    Premium,  // AA, KK, QQ, AKs — always push short stacks
+    Strong,   // JJ, TT, AQ, AK — push at moderate depths
+    Playable, // Mid pairs, suited broadways — push only when short
+    Weak,     // Everything else — only push when desperate
+}
+
+fn classify_push_tier(hand: [Card; 2]) -> PushTier {
+    let (r1, r2) = {
+        let mut ranks = [hand[0].rank.0, hand[1].rank.0];
+        ranks.sort_unstable_by(|a, b| b.cmp(a));
+        (ranks[0], ranks[1])
+    };
+    let suited = hand[0].suit == hand[1].suit;
+    let pair = r1 == r2;
+
+    if pair && r1 >= 12 { return PushTier::Premium; }       // QQ+
+    if r1 == 14 && r2 == 13 && suited { return PushTier::Premium; } // AKs
+    if pair && r1 >= 10 { return PushTier::Strong; }         // JJ, TT
+    if r1 == 14 && r2 >= 12 { return PushTier::Strong; }    // AK, AQ
+    if pair && r1 >= 7 { return PushTier::Playable; }        // 77-99
+    if r1 == 14 && r2 >= 10 && suited { return PushTier::Playable; } // ATs+
+    if r1 >= 12 && r2 >= 11 && suited { return PushTier::Playable; } // KQs, KJs, QJs
+    PushTier::Weak
+}
+
+/// Simplified ICM pressure: base threshold in BB modified by hand strength.
 /// Real ICM requires knowing payouts; here we use simplified thresholds.
-fn push_threshold_bb(stage: TournamentStage) -> u32 {
-    match stage {
-        TournamentStage::EarlyLevels  => 20, // less ICM pressure, looser push
+fn push_threshold_bb(stage: TournamentStage, tier: PushTier) -> u32 {
+    let base = match stage {
+        TournamentStage::EarlyLevels  => 20,
         TournamentStage::MiddleStages => 15,
-        TournamentStage::Bubble       => 10, // tighten up on bubble
-        TournamentStage::FinalTable   => 12, // depends on pay jumps
+        TournamentStage::Bubble       => 10,
+        TournamentStage::FinalTable   => 12,
+    };
+    // Premium hands can push at deeper stacks; weak hands need more desperation
+    match tier {
+        PushTier::Premium  => base + 8,
+        PushTier::Strong   => base + 3,
+        PushTier::Playable => base,
+        PushTier::Weak     => base.saturating_sub(4),
     }
 }
 
@@ -80,7 +115,8 @@ pub fn generate<R: Rng>(
     let pos_str = format!("{}", hero_pos);
     let hand_str = format!("{}{}", hero_hand[0], hero_hand[1]);
 
-    let threshold = push_threshold_bb(stage);
+    let push_tier = classify_push_tier(hero_hand);
+    let threshold = push_threshold_bb(stage, push_tier);
     let should_push = hero_stack_bb <= threshold;
 
     let stage_name = match stage {

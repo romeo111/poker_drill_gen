@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 // Card primitives
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -25,7 +25,7 @@ impl fmt::Display for Suit {
 }
 
 /// Rank 2..=14 where 14 = Ace.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Rank(pub u8);
 
 impl Rank {
@@ -45,7 +45,7 @@ impl fmt::Display for Rank {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Card {
     pub rank: Rank,
     pub suit: Suit,

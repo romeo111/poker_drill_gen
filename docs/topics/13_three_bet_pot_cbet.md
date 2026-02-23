@@ -121,8 +121,8 @@ back and hope the turn gives you equity or a free showdown.
 
 - Always a flop scenario (3 board cards).
 - Hero is always on the Button (the 3-better); villain is BB (the caller).
-- Two board textures: `Dry`, `Wet` (equal probability).
-- Two hand strengths: `Strong`, `Weak` (equal probability).
+- Two board textures: `FlopTexture::Dry`, `FlopTexture::Wet` (equal probability).
+- Two hand strengths: `FlopStrength::Strong`, `FlopStrength::Weak` (equal probability).
 - Four scenarios: Dry/Strong → small cbet, Wet/Strong → large cbet,
   Dry/Weak → check, Wet/Weak → check.
 - Three answer options: Check back, Small c-bet (~33%), Large c-bet (~67%).

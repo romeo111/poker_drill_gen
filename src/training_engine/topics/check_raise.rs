@@ -1,7 +1,7 @@
 use rand::Rng;
 use crate::training_engine::{
     deck::Deck,
-    evaluator::{has_flush_draw, has_straight_draw},
+    evaluator::has_straight_draw,
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
         Position, Suit, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
@@ -46,16 +46,16 @@ fn suit_index(s: Suit) -> usize {
     }
 }
 
-/// True if the hero's hole cards include a card that shares a suit with a board card,
-/// and the board already has at least one card of that suit (flush draw potential).
+/// True if hero holds a card in a suit that appears 2+ times on the board
+/// (hero contributes to a 3-card flush draw).
 fn hero_has_flush_draw(hand: [Card; 2], board: &[Card]) -> bool {
     let mut board_suit_counts = [0u8; 4];
     for c in board {
         board_suit_counts[suit_index(c.suit)] += 1;
     }
+    // Hero must hold a card in the suit that has 2+ board cards
     hand.iter()
-        .any(|c| board_suit_counts[suit_index(c.suit)] >= 1)
-        && has_flush_draw(board)
+        .any(|c| board_suit_counts[suit_index(c.suit)] >= 2)
 }
 
 /// True if hero holds a card whose rank is within 2 of any board card rank, and the

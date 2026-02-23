@@ -60,14 +60,24 @@ pub fn has_flush_draw(board: &[Card]) -> bool {
     false
 }
 
-/// True if there are 2 consecutively ranked cards (open-ender/gutshot possible).
+/// True if there are 2+ cards within a tight rank span (consecutive or 1-gap),
+/// indicating open-ender or gutshot potential.
 pub fn has_straight_draw(board: &[Card]) -> bool {
     let mut ranks: Vec<u8> = board.iter().map(|c| c.rank.0).collect();
     ranks.sort_unstable();
     ranks.dedup();
+    // Check for any 2 cards with a gap of exactly 1 (consecutive)
+    // or 3 cards within a span of 4 (covering connected textures)
     for window in ranks.windows(2) {
-        if window[1] - window[0] <= 2 {
+        if window[1] - window[0] == 1 {
             return true;
+        }
+    }
+    if ranks.len() >= 3 {
+        for window in ranks.windows(3) {
+            if window[2] - window[0] <= 4 {
+                return true;
+            }
         }
     }
     false
@@ -108,6 +118,68 @@ pub fn required_equity(call_amount: u32, pot_before_call: u32) -> f32 {
         return 0.0;
     }
     call_amount as f32 / total as f32
+}
+
+// ---------------------------------------------------------------------------
+// Hand strength classification (5-category, used by preflop + anti-limper)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandCategory {
+    Premium,   // AA, KK, QQ, AKs
+    Strong,    // JJ, TT, AQo, AKo, AQs
+    Playable,  // 99-77, AJs, KQs, suited connectors
+    Marginal,  // 66-22, offsuit broadway, weak aces
+    Trash,
+}
+
+impl std::fmt::Display for HandCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", hand_category_name(*self))
+    }
+}
+
+pub fn classify_hand(hand: [Card; 2]) -> HandCategory {
+    let (r1, r2) = {
+        let mut ranks = [hand[0].rank.0, hand[1].rank.0];
+        ranks.sort_unstable_by(|a, b| b.cmp(a));
+        (ranks[0], ranks[1])
+    };
+    let suited = hand[0].suit == hand[1].suit;
+    let pair = r1 == r2;
+
+    if pair {
+        return match r1 {
+            14 | 13 | 12 => HandCategory::Premium,
+            11 | 10      => HandCategory::Strong,
+            7..=9        => HandCategory::Playable,
+            _            => HandCategory::Marginal,
+        };
+    }
+
+    match (r1, r2, suited) {
+        (14, 13, true)                              => HandCategory::Premium,
+        (14, 13, false)                             => HandCategory::Strong,
+        (14, 12, true)                              => HandCategory::Strong,
+        (14, 12, false)                             => HandCategory::Strong,
+        (14, 11, true)                              => HandCategory::Playable,
+        (14, r, true) if r >= 9                     => HandCategory::Playable,
+        (13, 12, true)                              => HandCategory::Playable,
+        (13, 12, false)                             => HandCategory::Marginal,
+        (r1, r2, true) if r1 >= 9 && r1 - r2 == 1  => HandCategory::Playable,
+        (r1, _, _) if r1 <= 9                       => HandCategory::Trash,
+        _                                           => HandCategory::Marginal,
+    }
+}
+
+pub fn hand_category_name(cat: HandCategory) -> &'static str {
+    match cat {
+        HandCategory::Premium  => "premium",
+        HandCategory::Strong   => "strong",
+        HandCategory::Playable => "playable",
+        HandCategory::Marginal => "marginal",
+        HandCategory::Trash    => "trash",
+    }
 }
 
 #[cfg(test)]

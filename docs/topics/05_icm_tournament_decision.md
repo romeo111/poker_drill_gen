@@ -45,8 +45,10 @@ especially near the bubble or at a final table with large pay jumps.
 | Bubble | High (~20%) | ≤ 10 BB | Busting = no money; max fold equity value |
 | Final Table | High (~15%) | ≤ 12 BB | Pay jumps; each bust worth more |
 
-The engine uses simplified stack thresholds rather than full Malmuth-Harville ICM
-calculations, which require complete payout structure data.
+The engine uses simplified stack thresholds **modified by hand strength** rather than
+full Malmuth-Harville ICM calculations. A `PushTier` system (Premium / Strong / Playable / Weak)
+adjusts the base threshold: premium hands push at deeper stacks (+8 BB), while weak hands
+require more desperation (−4 BB from base).
 
 ---
 
@@ -180,7 +182,8 @@ worthwhile.
 - Always a tournament game type (`GameType::Tournament`).
 - Four stages: `EarlyLevels`, `MiddleStages`, `Bubble`, `FinalTable`.
 - Hero stack is sampled per difficulty (Beginner: 6–18 BB; Advanced: 3–30 BB).
-- `should_push = hero_stack_bb <= push_threshold_bb(stage)` determines the correct answer.
+- Hero's hand is classified into a `PushTier` (Premium/Strong/Playable/Weak) which adjusts the push threshold.
+- `should_push = hero_stack_bb <= push_threshold_bb(stage, push_tier)` determines the correct answer.
 - Only two answers: `Shove all-in` or `Fold` — no limping or small-raise options.
 - Risk premium percentage is displayed in explanations to reinforce ICM awareness.
 

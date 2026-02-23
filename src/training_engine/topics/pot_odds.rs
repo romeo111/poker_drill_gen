@@ -71,8 +71,16 @@ pub fn generate<R: Rng>(
     let bb = 2u32;
     let (pot_bb, bet_pct) = match difficulty {
         DifficultyLevel::Beginner     => (rng.gen_range(8..=12u32), 0.50f32),
-        DifficultyLevel::Intermediate => (rng.gen_range(6..=20), rng.gen_range_f32(0.33..=1.0)),
-        DifficultyLevel::Advanced     => (rng.gen_range(4..=30), rng.gen_range_f32(0.25..=1.5)),
+        DifficultyLevel::Intermediate => {
+            let p = rng.gen_range(6..=20);
+            let b = 0.33 + rng.gen::<f32>() * (1.0 - 0.33);
+            (p, b)
+        },
+        DifficultyLevel::Advanced     => {
+            let p = rng.gen_range(4..=30);
+            let b = 0.25 + rng.gen::<f32>() * (1.5 - 0.25);
+            (p, b)
+        },
     };
     let pot = pot_bb * bb;
     let bet = (pot as f32 * bet_pct).round() as u32;
@@ -208,17 +216,5 @@ pub fn generate<R: Rng>(
         table_setup,
         question,
         answers,
-    }
-}
-
-// Helper: generate a random f32 in a range via Rng
-trait RngF32Ext {
-    fn gen_range_f32(&mut self, range: std::ops::RangeInclusive<f32>) -> f32;
-}
-impl<R: Rng> RngF32Ext for R {
-    fn gen_range_f32(&mut self, range: std::ops::RangeInclusive<f32>) -> f32 {
-        let lo = *range.start();
-        let hi = *range.end();
-        lo + self.gen::<f32>() * (hi - lo)
     }
 }

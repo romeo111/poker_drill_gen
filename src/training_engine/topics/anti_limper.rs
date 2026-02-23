@@ -1,69 +1,12 @@
 use rand::Rng;
 use crate::training_engine::{
     deck::Deck,
+    evaluator::{classify_hand, HandCategory},
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
         Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
-
-// ---------------------------------------------------------------------------
-// Hand classification (inline copy of preflop's 5-category logic)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum HandCategory {
-    Premium,
-    Strong,
-    Playable,
-    Marginal,
-    Trash,
-}
-
-impl std::fmt::Display for HandCategory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            HandCategory::Premium  => "premium",
-            HandCategory::Strong   => "strong",
-            HandCategory::Playable => "playable",
-            HandCategory::Marginal => "marginal",
-            HandCategory::Trash    => "trash",
-        };
-        write!(f, "{}", s)
-    }
-}
-
-fn classify_hand(hand: [Card; 2]) -> HandCategory {
-    let (r1, r2) = {
-        let mut ranks = [hand[0].rank.0, hand[1].rank.0];
-        ranks.sort_unstable_by(|a, b| b.cmp(a));
-        (ranks[0], ranks[1])
-    };
-    let suited = hand[0].suit == hand[1].suit;
-    let pair = r1 == r2;
-
-    if pair {
-        return match r1 {
-            14 | 13 | 12 => HandCategory::Premium,
-            11 | 10      => HandCategory::Strong,
-            7..=9        => HandCategory::Playable,
-            _            => HandCategory::Marginal,
-        };
-    }
-
-    match (r1, r2, suited) {
-        (14, 13, true)              => HandCategory::Premium,
-        (14, 13, false)             => HandCategory::Strong,
-        (14, 12, _)                 => HandCategory::Strong,
-        (14, 11, true)              => HandCategory::Playable,
-        (14, r, true) if r >= 9     => HandCategory::Playable,
-        (13, 12, true)              => HandCategory::Playable,
-        (13, 12, false)             => HandCategory::Marginal,
-        (r1, r2, true) if r1 >= 9 && r1 - r2 <= 1 => HandCategory::Playable,
-        (r1, _, _) if r1 <= 9      => HandCategory::Trash,
-        _                           => HandCategory::Marginal,
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Iso-raise sizing based on limper count

@@ -1,69 +1,12 @@
 use rand::Rng;
 use crate::training_engine::{
     deck::Deck,
+    evaluator::{classify_hand, hand_category_name, HandCategory},
     models::{
         AnswerOption, Card, DifficultyLevel, GameType, PlayerState,
         Position, TableSetup, TextStyle, TrainingScenario, TrainingTopic,
     },
 };
-
-// ---------------------------------------------------------------------------
-// Hand strength classification helpers
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum HandCategory {
-    Premium,   // AA, KK, QQ, AKs
-    Strong,    // JJ, TT, AQs, AKo, AQo
-    Playable,  // 99-77, AJs, KQs, suited connectors
-    Marginal,  // 66-22, offsuit broadway, weak aces
-    Trash,
-}
-
-fn classify_hand(hand: [Card; 2]) -> HandCategory {
-    let (r1, r2) = {
-        let mut ranks = [hand[0].rank.0, hand[1].rank.0];
-        ranks.sort_unstable_by(|a, b| b.cmp(a));
-        (ranks[0], ranks[1])
-    };
-    let suited = hand[0].suit == hand[1].suit;
-    let pair = r1 == r2;
-
-    if pair {
-        return match r1 {
-            14 | 13 | 12 => HandCategory::Premium,
-            11 | 10      => HandCategory::Strong,
-            7..=9        => HandCategory::Playable,
-            _            => HandCategory::Marginal,
-        };
-    }
-
-    // Non-pair
-    match (r1, r2, suited) {
-        (14, 13, true)         => HandCategory::Premium,
-        (14, 13, false)        => HandCategory::Strong,
-        (14, 12, true)         => HandCategory::Strong,
-        (14, 12, false)        => HandCategory::Strong,
-        (14, 11, true)         => HandCategory::Playable,
-        (14, r, true) if r >= 9 => HandCategory::Playable,
-        (13, 12, true)         => HandCategory::Playable,
-        (13, 12, false)        => HandCategory::Marginal,
-        (r1, r2, true) if r1 >= 9 && r1 - r2 == 1 => HandCategory::Playable,
-        (r1, r2, true) if r1 >= 9 && r1 - r2 == 0 => HandCategory::Playable,
-        (r1, _, _) if r1 <= 9 => HandCategory::Trash,
-        _                      => HandCategory::Marginal,
-    }
-}
-
-fn hand_category_name(cat: HandCategory) -> &'static str {
-    match cat {
-        HandCategory::Premium  => "premium",
-        HandCategory::Strong   => "strong",
-        HandCategory::Playable => "playable",
-        HandCategory::Marginal => "marginal",
-        HandCategory::Trash    => "trash",
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Scenario-type enumeration
@@ -315,7 +258,7 @@ fn build_spot<R: Rng>(
                 HandCategory::Strong   => "C",  // 3-bet (may also call, 3-bet is cleaner)
                 HandCategory::Playable => if pos.is_late() { "C" } else { "B" },
                 HandCategory::Marginal => "A",  // fold regardless of position
-                HandCategory::Trash    => if pos.is_late() && stack_bb >= 25 { "C" } else { "A" },
+                HandCategory::Trash    => "A",  // always fold trash vs a raise
             };
 
             let fold_body = if correct == "A" {

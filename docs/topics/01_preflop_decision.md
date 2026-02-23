@@ -150,7 +150,7 @@ advantage vs a balanced 3-bet range (~50% equity vs most ranges).
 
 ## Engine Modelling Notes
 
-- Hand classification: 5 categories using rank + suited flag logic in `preflop.rs`.
+- Hand classification: 5 categories (`HandCategory` enum + `classify_hand()`) defined in `evaluator.rs`; called by `preflop.rs`.
 - Scenarios randomly select `OpenRaise`, `FacingOpen`, or `ThreeBetPot` with equal
   probability.
 - Stack depth is sampled per difficulty (Beginner: 80–120 BB; Advanced: 15–300 BB).

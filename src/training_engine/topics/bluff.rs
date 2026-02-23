@@ -62,7 +62,7 @@ pub fn generate<R: Rng>(
 
     let small_bet  = (pot as f32 * 0.40).round() as u32;
     let large_bet  = (pot as f32 * 0.75).round() as u32;
-    let shove      = stack.min(stack); // all-in
+    let shove      = stack; // all-in
 
     let spr_bucket = if spr < 2.0 { "LowSPR" } else { "HighSPR" };
     let branch_key = match bluff_type {
@@ -172,20 +172,25 @@ pub fn generate<R: Rng>(
                 } else {
                     format!("A big bet here throws too many chips away — your opponent isn't folding. Check instead.")
                 },
-                TextStyle::Technical => format!(
-                    "Large bluff ({large_bet} chips) with {hand_str} ({bluff_type}): \
-                     Requires villain to fold {:.1}% of the time to break even. \
-                     SPR = {spr:.1}. {}",
-                    fold_freq_large * 100.0,
-                    if correct_id == "C" {
-                        "A 75% pot bluff applies significant pressure and is credible with a \
-                         {bluff_type}. Villain must fold a realistic portion of their range, \
-                         and blockers in your hand make their strong hands less likely."
+                TextStyle::Technical => {
+                    let rationale = if correct_id == "C" {
+                        format!(
+                            "A 75% pot bluff applies significant pressure and is credible with a \
+                             {bluff_type}. Villain must fold a realistic portion of their range, \
+                             and blockers in your hand make their strong hands less likely."
+                        )
                     } else {
                         "A large bluff here over-commits with no fold equity. At this SPR, \
                          villain will call too frequently for this sizing to be profitable."
-                    }
-                ),
+                            .to_string()
+                    };
+                    format!(
+                        "Large bluff ({large_bet} chips) with {hand_str} ({bluff_type}): \
+                         Requires villain to fold {:.1}% of the time to break even. \
+                         SPR = {spr:.1}. {rationale}",
+                        fold_freq_large * 100.0,
+                    )
+                },
             },
         },
         AnswerOption {
