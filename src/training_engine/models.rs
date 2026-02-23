@@ -143,6 +143,7 @@ pub enum TrainingTopic {
     ThreeBetPotCbet,
     RiverCallOrFold,
     TurnProbeBet,
+    DelayedCbet,
 }
 
 impl fmt::Display for TrainingTopic {
@@ -163,6 +164,7 @@ impl fmt::Display for TrainingTopic {
             TrainingTopic::ThreeBetPotCbet           => "3-Bet Pot C-Bet",
             TrainingTopic::RiverCallOrFold           => "River Call or Fold",
             TrainingTopic::TurnProbeBet              => "Turn Probe Bet",
+            TrainingTopic::DelayedCbet               => "Delayed C-Bet",
         };
         write!(f, "{}", s)
     }

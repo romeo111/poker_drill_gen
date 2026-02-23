@@ -24,6 +24,7 @@ fn make_scenario_id(topic: TrainingTopic, rng: &mut impl RngCore) -> String {
         TrainingTopic::ThreeBetPotCbet          => "3B",
         TrainingTopic::RiverCallOrFold          => "RF",
         TrainingTopic::TurnProbeBet             => "PB",
+        TrainingTopic::DelayedCbet              => "DC",
     };
     format!("{}-{:08X}", prefix, rng.next_u32())
 }
@@ -83,5 +84,8 @@ pub fn generate_training(request: TrainingRequest) -> TrainingScenario {
 
         TrainingTopic::TurnProbeBet =>
             topics::turn_probe_bet::generate(&mut rng, request.difficulty, scenario_id, ts),
+
+        TrainingTopic::DelayedCbet =>
+            topics::delayed_cbet::generate(&mut rng, request.difficulty, scenario_id, ts),
     }
 }

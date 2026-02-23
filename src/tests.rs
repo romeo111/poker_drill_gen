@@ -2,7 +2,7 @@
 //!
 //! Included from `lib.rs` under `#[cfg(test)]`.
 //!
-//! # Coverage (40 tests)
+//! # Coverage (41 tests)
 //!
 //! | Group | What is tested |
 //! |-------|----------------|
@@ -33,8 +33,8 @@ fn req(topic: TrainingTopic, seed: u64) -> TrainingRequest {
     }
 }
 
-/// All fifteen training topics in canonical order.
-fn all_topics() -> [TrainingTopic; 15] {
+/// All sixteen training topics in canonical order.
+fn all_topics() -> [TrainingTopic; 16] {
     [
         TrainingTopic::PreflopDecision,
         TrainingTopic::PostflopContinuationBet,
@@ -51,6 +51,7 @@ fn all_topics() -> [TrainingTopic; 15] {
         TrainingTopic::ThreeBetPotCbet,
         TrainingTopic::RiverCallOrFold,
         TrainingTopic::TurnProbeBet,
+        TrainingTopic::DelayedCbet,
     ]
 }
 
@@ -178,6 +179,7 @@ fn every_scenario_id_starts_with_topic_prefix() {
         (TrainingTopic::ThreeBetPotCbet,          "3B-"),
         (TrainingTopic::RiverCallOrFold,          "RF-"),
         (TrainingTopic::TurnProbeBet,             "PB-"),
+        (TrainingTopic::DelayedCbet,              "DC-"),
     ];
     for (topic, prefix) in expected_prefixes {
         let s = generate_training(req(topic, 1));
@@ -715,5 +717,30 @@ fn classify_hand_strong_and_playable() {
         Card { rank: Rank(3), suit: Suit::Diamonds },
     ];
     assert_eq!(classify_hand(threes), HandCategory::Marginal);
+}
+
+#[test]
+fn delayed_cbet_has_4_board_cards_btn_hero_and_zero_bet() {
+    for seed in SEEDS {
+        let s = generate_training(req(TrainingTopic::DelayedCbet, seed));
+        assert_eq!(
+            s.table_setup.board.len(), 4,
+            "DelayedCbet must have 3 flop + 1 turn = 4 board cards (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.hero_position,
+            Position::BTN,
+            "DelayedCbet hero must be on the Button (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.current_bet, 0,
+            "DelayedCbet: villain checks so current_bet must be 0 (seed={seed})"
+        );
+        assert_eq!(
+            s.table_setup.game_type,
+            GameType::CashGame,
+            "DelayedCbet must be a cash game (seed={seed})"
+        );
+    }
 }
 

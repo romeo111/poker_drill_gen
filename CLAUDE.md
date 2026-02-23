@@ -52,11 +52,12 @@ src/
       three_bet_pot_cbet.rs(3B-)
       river_call_or_fold.rs(RF-)
       turn_probe_bet.rs   (PB-)
+      delayed_cbet.rs     (DC-)
 examples/
   demo.rs
 docs/
   README.md
-  topics/  ← one .md per topic (01_preflop_decision.md … 15_turn_probe_bet.md)
+  topics/  ← one .md per topic (01_preflop_decision.md … 17_delayed_cbet.md)
 ```
 
 ---
@@ -89,6 +90,7 @@ docs/
 | 13 | `ThreeBetPotCbet` | `3B-` | Flop | C-bet sizing in 3-bet pots |
 | 14 | `RiverCallOrFold` | `RF-` | River | Call vs fold vs raise facing river bet |
 | 15 | `TurnProbeBet` | `PB-` | Turn | Probe bet sizing OOP after check-through |
+| 17 | `DelayedCbet` | `DC-` | Turn | Delayed c-bet sizing IP after flop check-back |
 
 ---
 
