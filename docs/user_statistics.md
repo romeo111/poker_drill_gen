@@ -202,3 +202,232 @@ One immutable record per submitted answer (append-only log).
 | Lifetime score | Global | Sum of all topic scores |
 | Adaptive difficulty | Per branch_key | 3-correct streak → promote; 2-wrong streak → demote |
 | Mastery level | Per topic | `(accuracy × 50) + (difficulty_level × 25)` |
+
+---
+
+## Section 7 — UX/UI Design
+
+### 7.1 Progress Bar Conventions
+
+All progress bars use a filled/empty block style and are 20 characters wide:
+
+```
+[████████████░░░░░░░░]  60%
+```
+
+Color tiers (CSS class or color token):
+
+| Mastery Range | Color  | Label       |
+|---------------|--------|-------------|
+| 0 – 33        | red    | Beginner    |
+| 34 – 66       | yellow | Intermediate|
+| 67 – 99       | green  | Advanced    |
+| 100           | gold   | Mastered    |
+
+Difficulty badge colors:
+
+| Difficulty   | Badge style              |
+|--------------|--------------------------|
+| Beginner     | grey background          |
+| Intermediate | blue background          |
+| Advanced     | purple background        |
+
+---
+
+### 7.2 Screen 1 — Player Stats Dashboard
+
+The top-level view shown after a player logs in or taps "My Stats".
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  PLAYER STATS                                    [≡ Menu]    ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║   Jake M.                              ★ 1,840 pts lifetime  ║
+║   Member since Jan 2026                                      ║
+║                                                              ║
+║   OVERALL MASTERY                                            ║
+║   [████████████████░░░░]  78%   ·  12 / 15 topics started   ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  TOPIC PROGRESS                                [Sort ▾]      ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  Preflop Decision          [INTERMEDIATE]                    ║
+║  [████████████████░░░░]  80%          110 pts   9/12 ✓      ║
+║                                                              ║
+║  Postflop C-Bet            [ADVANCED]                        ║
+║  [████████████████████] 100%          210 pts  14/14 ✓      ║
+║                                                              ║
+║  Pot Odds & Equity         [INTERMEDIATE]                    ║
+║  [██████████░░░░░░░░░░]  50%           80 pts   6/10 ✓      ║
+║                                                              ║
+║  Bluff Spot                [BEGINNER]                        ║
+║  [████░░░░░░░░░░░░░░░░]  20%           30 pts   3/8  ✓      ║
+║                                                              ║
+║  ICM / Tournament          [BEGINNER]                        ║
+║  [░░░░░░░░░░░░░░░░░░░░]   0%            0 pts   —  not started║
+║                                                              ║
+║  Turn Barrel               [INTERMEDIATE]                    ║
+║  [██████████████░░░░░░]  70%          140 pts  10/12 ✓      ║
+║                                                              ║
+║  Check-Raise               [INTERMEDIATE]                    ║
+║  [████████░░░░░░░░░░░░]  40%           60 pts   5/9  ✓      ║
+║                                                              ║
+║  Semi-Bluff                [BEGINNER]                        ║
+║  [██████░░░░░░░░░░░░░░]  30%           40 pts   4/8  ✓      ║
+║                                                              ║
+║  Anti-Limper Iso           [ADVANCED]                        ║
+║  [████████████████████]  95%          190 pts  13/13 ✓      ║
+║                                                              ║
+║  River Value Bet           [INTERMEDIATE]                    ║
+║  [██████████████░░░░░░]  65%          120 pts   9/11 ✓      ║
+║                                                              ║
+║  Squeeze Play              [BEGINNER]                        ║
+║  [██████░░░░░░░░░░░░░░]  25%           20 pts   2/6  ✓      ║
+║                                                              ║
+║  Big Blind Defense         [INTERMEDIATE]                    ║
+║  [████████████░░░░░░░░]  60%          100 pts   8/10 ✓      ║
+║                                                              ║
+║  3-Bet Pot C-Bet           [BEGINNER]                        ║
+║  [████░░░░░░░░░░░░░░░░]  15%           10 pts   1/5  ✓      ║
+║                                                              ║
+║  River Call or Fold        [INTERMEDIATE]                    ║
+║  [██████████░░░░░░░░░░]  50%           80 pts   6/9  ✓      ║
+║                                                              ║
+║  Turn Probe Bet            [BEGINNER]                        ║
+║  [░░░░░░░░░░░░░░░░░░░░]   0%            0 pts   —  not started║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║       [▶ Start Next Drill]     [⟳ Review Wrong Answers]      ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Layout notes:**
+- Each topic row = topic name + difficulty badge + progress bar + pts + accuracy fraction.
+- Rows are sorted by mastery descending by default; user can toggle sort.
+- "Not started" topics show an empty bar and greyed text.
+- The overall mastery bar at the top is the average of all 15 topic mastery values.
+- "Start Next Drill" routes to the lowest-mastery topic that is not yet mastered.
+
+---
+
+### 7.3 Screen 2 — Topic Detail View
+
+Tapping any topic row opens the detail view for that topic.
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  ← BACK          PREFLOP DECISION              [≡ Menu]     ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║   MASTERY                                                    ║
+║   [████████████████░░░░]  80%    110 pts total               ║
+║   Accuracy: 75%  (9 correct / 12 attempts)                   ║
+║   Current level: INTERMEDIATE                                ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  BRANCHES                                                    ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  OpenRaise : premium : IP          [ADVANCED]   streak ✓✓   ║
+║  [████████████████████]  95%       5/5 correct               ║
+║                                                              ║
+║  OpenRaise : marginal : OOP        [INTERMEDIATE] streak ✗   ║
+║  [██████████░░░░░░░░░░]  50%       2/4 correct               ║
+║                                                              ║
+║  CallOrFold : strong : BB          [BEGINNER]   streak ✓    ║
+║  [████████░░░░░░░░░░░░]  40%       2/3 correct               ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  RECENT ACTIVITY                                             ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  ✓  PF-3A1B2C4D  OpenRaise:premium:IP    Intermediate  +20  ║
+║  ✗  PF-9F2E1A3B  OpenRaise:marginal:OOP  Intermediate   +0  ║
+║  ✓  PF-1C4D5E6F  OpenRaise:premium:IP    Intermediate  +20  ║
+║  ✓  PF-7B8A2C1D  CallOrFold:strong:BB    Beginner      +10  ║
+║  ✗  PF-2E3F4A5B  OpenRaise:marginal:OOP  Beginner       +0  ║
+║                                                              ║
+║                               [Load more...]                 ║
+╠══════════════════════════════════════════════════════════════╣
+║             [▶ Drill This Topic]                             ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Layout notes:**
+- Each branch row shows its own mini progress bar, current difficulty badge, and streak indicator.
+- Streak indicator: `✓✓` = 2 correct in a row, `✗` = last answer was wrong.
+- Recent activity log shows the last 5 answer records, newest first.
+- `+20` / `+0` shows points earned on each attempt.
+- "Drill This Topic" starts the next scenario for this topic at the user's current adaptive difficulty.
+
+---
+
+### 7.4 Screen 3 — Post-Answer Feedback Panel
+
+Shown immediately after the user submits an answer to a drill. Overlays or replaces the drill card.
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║         ✓  CORRECT  +20 pts                                  ║
+║                                                              ║
+║  "Raise to 3BB from BTN with AKs — premium hand in          ║
+║   position. Folding is too weak; calling is suboptimal."     ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  PREFLOP DECISION  —  OpenRaise:premium:IP                   ║
+║                                                              ║
+║  Mastery    [████████████████░░░░]  80%   (was 75%)  ▲ +5   ║
+║  Streak     ✓ ✓  (1 more correct → ADVANCED)                 ║
+║  Difficulty [INTERMEDIATE]                                   ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║   [▶ Next Drill]             [✕ Back to Stats]               ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+Wrong answer variant:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║         ✗  INCORRECT  +0 pts                                 ║
+║                                                              ║
+║  Correct answer: B — Raise to 3BB                            ║
+║  "KJo from UTG is marginal out of position. Folding is       ║
+║   correct at this stack depth."                              ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  PREFLOP DECISION  —  OpenRaise:marginal:OOP                 ║
+║                                                              ║
+║  Mastery    [██████████░░░░░░░░░░]  50%   (unchanged)        ║
+║  Streak     ✗ ✗  (1 more wrong → demoted to BEGINNER)        ║
+║  Difficulty [INTERMEDIATE]                                   ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║   [▶ Try Again (same branch)]   [✕ Back to Stats]            ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Layout notes:**
+- Mastery bar shows the delta `▲ +5` on correct, no delta on wrong (mastery only increases on correct).
+- Streak displays as filled dots or ✓/✗ icons, with a hint about the next threshold.
+- On wrong answer: reveal the correct answer ID and show the full explanation.
+- "Try Again" re-drills the same branch at the same difficulty.
+
+---
+
+### 7.5 UI Component Summary
+
+| Component | Used on | Data source |
+|---|---|---|
+| Overall mastery bar | Dashboard header | avg of all 15 `topic_mastery` values |
+| Per-topic mastery bar | Dashboard row, Topic detail | `topic_mastery[topic]` |
+| Per-branch mastery bar | Topic detail — Branches | derived from `BranchStats` accuracy + difficulty |
+| Difficulty badge | Dashboard row, Topic detail, Feedback panel | `BranchStats.current_difficulty` |
+| Streak indicator | Topic detail, Feedback panel | `BranchStats.correct_streak` / `wrong_streak` |
+| Lifetime score | Dashboard header | `UserProfile.lifetime_score` |
+| Points delta | Feedback panel | points earned on last answer |
+| Recent activity log | Topic detail | last N `AnswerRecord` rows for this topic |
