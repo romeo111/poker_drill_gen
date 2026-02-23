@@ -53,62 +53,112 @@ lifetime_score = sum of topic_score across all 15 topics
 
 ## Section 3 — Adaptive Difficulty Rules
 
-Difficulty adapts per `(user_id, branch_key)` pair — not per topic as a whole, because a user may be advanced at one branch of a topic and still a beginner at another.
+Each branch tracks difficulty independently. A user can be at Advanced on one branch of a topic and still at Beginner on another.
 
-### Starting Condition
+### The Three Levels
 
-- Any new `(user_id, branch_key)` pair begins at **Beginner**.
+```
+  BEGINNER  ──────────────▶  INTERMEDIATE  ──────────────▶  ADVANCED
+            ◀──────────────                ◀──────────────
+```
 
-### Promotion Rule
+### Starting Point
 
-- **3 correct answers in a row** on the current difficulty → promote one level.
-  - Beginner → Intermediate
-  - Intermediate → Advanced
-  - Advanced → stays at Advanced (no further promotion)
+Every branch always starts at **Beginner** the first time a user drills it.
 
-### Demotion Rule
+### Moving Up (Promotion)
 
-- **2 wrong answers in a row** on the current difficulty → demote one level.
-  - Advanced → Intermediate
-  - Intermediate → Beginner
-  - Beginner → stays at Beginner (no further demotion)
+Get **3 correct answers in a row** → move up one level.
 
-### Streak Tracking
+```
+  ✓ ✓ ✓  →  promote
+  ✓ ✓ ✗  →  streak resets, stay at current level
+```
 
-- The streak counter tracks only the **current direction** (consecutive correct or consecutive wrong).
-- Any direction change (correct after wrong, or wrong after correct) resets the streak to 1 in the new direction.
-- Example streak sequence for a branch: `C C W C C C` → after the 3rd consecutive correct the user promotes.
+- Beginner → Intermediate after 3 correct in a row
+- Intermediate → Advanced after 3 correct in a row
+- Advanced is the ceiling — no further promotion
+
+### Moving Down (Demotion)
+
+Get **2 wrong answers in a row** → move down one level.
+
+```
+  ✗ ✗  →  demote
+  ✗ ✓  →  streak resets, stay at current level
+```
+
+- Advanced → Intermediate after 2 wrong in a row
+- Intermediate → Beginner after 2 wrong in a row
+- Beginner is the floor — no further demotion
+
+### Streak Reset Rule
+
+Any answer in the opposite direction resets the streak counter.
+
+```
+  Sequence:  ✓ ✓ ✗ ✓ ✓ ✓
+                     ^
+                     streak resets here; next 3 correct → promote
+```
+
+### Quick Reference
+
+| Event | Effect |
+|---|---|
+| 3rd consecutive correct | Promote one level |
+| 2nd consecutive wrong | Demote one level |
+| Correct after a wrong | Streak resets to 1 correct |
+| Wrong after a correct | Streak resets to 1 wrong |
+| Already at Advanced + promote | Stay at Advanced |
+| Already at Beginner + demote | Stay at Beginner |
 
 ---
 
-## Section 4 — Per-Topic Progress Rating (Mastery Level)
+## Section 4 — Per-Topic Mastery Level
 
-Each topic receives a **mastery level** from 0 to 100.
+Each topic has a **mastery tier** from 0 to 5. The tier is determined by the player's accuracy and the highest difficulty level reached on that topic.
 
-### Inputs
+### The Five Tiers
 
-| Input | Description |
-|---|---|
-| `accuracy` | `correct_count / total_attempts` for the topic (0.0–1.0). Uses 0 if no attempts yet. |
-| `difficulty_level` | Highest difficulty level currently reached on any branch of this topic: Beginner=0, Intermediate=1, Advanced=2 |
+| Tier | Name     | Stars  | Bar % | Criteria |
+|------|----------|--------|-------|----------|
+| 0    | Unstarted  | ☆☆☆☆☆ | 0%   | No attempts yet |
+| 1    | Learning   | ★☆☆☆☆ | 20%  | Attempting at Beginner (any accuracy) |
+| 2    | Developing | ★★☆☆☆ | 40%  | ≥ 70% accuracy at Beginner |
+| 3    | Competent  | ★★★☆☆ | 60%  | ≥ 70% accuracy at Intermediate |
+| 4    | Proficient | ★★★★☆ | 80%  | ≥ 70% accuracy at Advanced |
+| 5    | Mastered   | ★★★★★ | 100% | ≥ 90% accuracy at Advanced with ≥ 10 attempts |
 
-### Formula
+Tiers are earned in order — a player must pass each tier before the next unlocks.
+
+### How to Read Tier Criteria
+
+- **Accuracy** is calculated across all answer records for that topic at that difficulty level.
+- **Attempts** count all answered drills for the topic, not just the most recent session.
+- Once a tier is reached it is **never lost**, even if accuracy dips later. (Difficulty can still demote, but the display tier is a high-water mark.)
+
+### Example Progressions
 
 ```
-mastery = (accuracy × 50) + (difficulty_level × 25)
+ 0 attempts           →  Tier 0  Unstarted   ☆☆☆☆☆  [░░░░░░░░░░░░░░░░░░░░]   0%
+ 3 Beginner attempts  →  Tier 1  Learning    ★☆☆☆☆  [████░░░░░░░░░░░░░░░░]  20%
+ 70% acc at Beginner  →  Tier 2  Developing  ★★☆☆☆  [████████░░░░░░░░░░░░]  40%
+ 70% acc at Interm.   →  Tier 3  Competent   ★★★☆☆  [████████████░░░░░░░░]  60%
+ 70% acc at Advanced  →  Tier 4  Proficient  ★★★★☆  [████████████████░░░░]  80%
+ 90% acc + ≥10 Adv.   →  Tier 5  Mastered    ★★★★★  [████████████████████] 100%
 ```
 
-### Range
+### Progress Bar Color by Tier
 
-| Scenario | Mastery |
-|---|---|
-| No attempts | 0 |
-| 100% accuracy at Beginner | 50 |
-| 100% accuracy at Intermediate | 75 |
-| 100% accuracy at Advanced | 100 |
-| 50% accuracy at Advanced | 75 |
-
-The mastery score is a **display value** — it can be shown as a progress bar (0–100%) or a star rating.
+| Tier | Color  |
+|------|--------|
+| 0    | grey   |
+| 1    | red    |
+| 2    | orange |
+| 3    | yellow |
+| 4    | green  |
+| 5    | gold   |
 
 ---
 
@@ -200,8 +250,8 @@ One immutable record per submitted answer (append-only log).
 | Points per answer | Per answer record | difficulty × (10/20/30) if correct, else 0 |
 | Topic score | Per topic | Sum of points on that topic |
 | Lifetime score | Global | Sum of all topic scores |
-| Adaptive difficulty | Per branch_key | 3-correct streak → promote; 2-wrong streak → demote |
-| Mastery level | Per topic | `(accuracy × 50) + (difficulty_level × 25)` |
+| Adaptive difficulty | Per branch_key | 3 correct in a row → promote; 2 wrong in a row → demote |
+| Mastery tier | Per topic | 0–5 stars based on accuracy thresholds at each difficulty level |
 
 ---
 
@@ -424,8 +474,8 @@ Wrong answer variant:
 | Component | Used on | Data source |
 |---|---|---|
 | Overall mastery bar | Dashboard header | avg of all 15 `topic_mastery` values |
-| Per-topic mastery bar | Dashboard row, Topic detail | `topic_mastery[topic]` |
-| Per-branch mastery bar | Topic detail — Branches | derived from `BranchStats` accuracy + difficulty |
+| Per-topic mastery bar | Dashboard row, Topic detail | mastery tier (0–5) → bar % (0/20/40/60/80/100) |
+| Per-branch mastery bar | Topic detail — Branches | derived from `BranchStats` accuracy + current difficulty |
 | Difficulty badge | Dashboard row, Topic detail, Feedback panel | `BranchStats.current_difficulty` |
 | Streak indicator | Topic detail, Feedback panel | `BranchStats.correct_streak` / `wrong_streak` |
 | Lifetime score | Dashboard header | `UserProfile.lifetime_score` |
