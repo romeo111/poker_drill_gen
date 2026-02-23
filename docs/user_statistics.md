@@ -2,6 +2,15 @@
 
 This document defines the data model, scoring formula, adaptive difficulty rules, and progress tracking for the poker drill system. No implementation language is assumed — any backend (file, Redis, SQL) can follow this specification.
 
+### Two concepts that share the same values — do not confuse them
+
+| Term | What it is | Who owns it | When it changes |
+|---|---|---|---|
+| `drill_difficulty` | The difficulty level a specific drill was generated at | The drill/scenario | Set once at generation, never changes |
+| `branch_level` | The user's current adaptive level on a branch | The user | Updated by the adaptive rules after each answer |
+
+**The relationship:** when a user requests a drill, the system reads their `branch_level` for that branch and generates the drill at that difficulty — stamping it as `drill_difficulty` on the scenario. After the user answers, `branch_level` may be promoted or demoted. The drill's `drill_difficulty` stays fixed forever as a historical fact.
+
 ---
 
 ## Section 1 — What to Record Per Answer
@@ -14,7 +23,7 @@ Each time a user submits an answer to a drill, record the following fields:
 | `scenario_id` | string | The scenario ID from the drill response (e.g. `PF-3A1B2C4D`) |
 | `topic` | string | Topic enum variant name (e.g. `PreflopDecision`, `BluffSpot`) |
 | `branch_key` | string | Fine-grained branch within the topic (e.g. `OpenRaise:premium:IP`) |
-| `difficulty` | string | `Beginner`, `Intermediate`, or `Advanced` |
+| `drill_difficulty` | string | The difficulty the drill was generated at — `Beginner`, `Intermediate`, or `Advanced`. Set by the system from the user's `branch_level` at the time of generation. Never changes after the drill is created. |
 | `answer_id` | string | The answer the user selected (`"A"`, `"B"`, or `"C"`) |
 | `is_correct` | boolean | Whether the selected answer was correct |
 | `timestamp` | ISO 8601 string | UTC datetime of submission |
@@ -25,9 +34,11 @@ These records are immutable — never update a submitted answer. Append only.
 
 ## Section 2 — Scoring Formula Per Topic
 
-### Point Values by Difficulty
+### Point Values by drill_difficulty
 
-| Difficulty | Points (correct) | Points (wrong) |
+Points are determined by `drill_difficulty` — the difficulty stamped on the drill at generation time.
+
+| drill_difficulty | Points (correct) | Points (wrong) |
 |---|---|---|
 | Beginner | 10 | 0 |
 | Intermediate | 20 | 0 |
@@ -41,7 +52,7 @@ Wrong answers always score 0. There are no negative points — this encourages c
 topic_score = sum of points earned across all answer records for that topic
 ```
 
-A user who answers 5 Beginner questions correctly and 3 Intermediate questions correctly on `BluffSpot` has a topic score of `(5 × 10) + (3 × 20) = 110`.
+A user who answers 5 Beginner drills correctly and 3 Intermediate drills correctly on `BluffSpot` has a topic score of `(5 × 10) + (3 × 20) = 110`.
 
 ### Lifetime Score
 
@@ -53,9 +64,11 @@ lifetime_score = sum of topic_score across all 15 topics
 
 ## Section 3 — Adaptive Difficulty Rules
 
-Each branch tracks difficulty independently. A user can be at Advanced on one branch of a topic and still at Beginner on another.
+The adaptive system manages each user's **`branch_level`** — their current level on a specific branch. It is not the drill itself. When the user starts a drill, the system reads `branch_level` and generates the drill at that difficulty. After the answer is submitted, `branch_level` may be promoted or demoted.
 
-### The Three Levels
+Each branch tracks its own `branch_level` independently. A user can be at Advanced on one branch of a topic and still at Beginner on another.
+
+### The Three branch_level Values
 
 ```
   BEGINNER  ──────────────▶  INTERMEDIATE  ──────────────▶  ADVANCED
@@ -64,7 +77,7 @@ Each branch tracks difficulty independently. A user can be at Advanced on one br
 
 ### Starting Point
 
-Every branch always starts at **Beginner** the first time a user drills it.
+Every branch's `branch_level` always starts at **Beginner** the first time a user drills it.
 
 ### Moving Up (Promotion)
 
@@ -124,29 +137,29 @@ Each topic has a **mastery tier** from 0 to 5. The tier is determined by the pla
 | Tier | Name     | Stars  | Bar % | Criteria |
 |------|----------|--------|-------|----------|
 | 0    | Unstarted  | ☆☆☆☆☆ | 0%   | No attempts yet |
-| 1    | Learning   | ★☆☆☆☆ | 20%  | Attempting at Beginner (any accuracy) |
-| 2    | Developing | ★★☆☆☆ | 40%  | ≥ 70% accuracy at Beginner |
-| 3    | Competent  | ★★★☆☆ | 60%  | ≥ 70% accuracy at Intermediate |
-| 4    | Proficient | ★★★★☆ | 80%  | ≥ 70% accuracy at Advanced |
-| 5    | Mastered   | ★★★★★ | 100% | ≥ 90% accuracy at Advanced with ≥ 10 attempts |
+| 1    | Learning   | ★☆☆☆☆ | 20%  | ≥ 1 drill answered at `drill_difficulty: Beginner` |
+| 2    | Developing | ★★☆☆☆ | 40%  | ≥ 70% accuracy across all Beginner drills on this topic |
+| 3    | Competent  | ★★★☆☆ | 60%  | ≥ 70% accuracy across all Intermediate drills on this topic |
+| 4    | Proficient | ★★★★☆ | 80%  | ≥ 70% accuracy across all Advanced drills on this topic |
+| 5    | Mastered   | ★★★★★ | 100% | ≥ 90% accuracy across all Advanced drills, with ≥ 10 Advanced attempts |
 
 Tiers are earned in order — a player must pass each tier before the next unlocks.
 
 ### How to Read Tier Criteria
 
-- **Accuracy** is calculated across all answer records for that topic at that difficulty level.
-- **Attempts** count all answered drills for the topic, not just the most recent session.
-- Once a tier is reached it is **never lost**, even if accuracy dips later. (Difficulty can still demote, but the display tier is a high-water mark.)
+- **Accuracy at a difficulty** = correct answers / total answers where `drill_difficulty` matches that level, across all time for this topic.
+- Tier criteria use `drill_difficulty` (the historical difficulty stamped on past drills), not `branch_level` (the user's current adaptive state). A user whose `branch_level` was demoted still keeps drills they completed at higher levels.
+- Once a tier is reached it is **never lost**, even if accuracy dips later. The display tier is a high-water mark.
 
 ### Example Progressions
 
 ```
- 0 attempts           →  Tier 0  Unstarted   ☆☆☆☆☆  [░░░░░░░░░░░░░░░░░░░░]   0%
- 3 Beginner attempts  →  Tier 1  Learning    ★☆☆☆☆  [████░░░░░░░░░░░░░░░░]  20%
- 70% acc at Beginner  →  Tier 2  Developing  ★★☆☆☆  [████████░░░░░░░░░░░░]  40%
- 70% acc at Interm.   →  Tier 3  Competent   ★★★☆☆  [████████████░░░░░░░░]  60%
- 70% acc at Advanced  →  Tier 4  Proficient  ★★★★☆  [████████████████░░░░]  80%
- 90% acc + ≥10 Adv.   →  Tier 5  Mastered    ★★★★★  [████████████████████] 100%
+ 0 attempts                     →  Tier 0  Unstarted   ☆☆☆☆☆  [░░░░░░░░░░░░░░░░░░░░]   0%
+ 1+ Beginner drills answered    →  Tier 1  Learning    ★☆☆☆☆  [████░░░░░░░░░░░░░░░░]  20%
+ 70% acc on Beginner drills     →  Tier 2  Developing  ★★☆☆☆  [████████░░░░░░░░░░░░]  40%
+ 70% acc on Intermediate drills →  Tier 3  Competent   ★★★☆☆  [████████████░░░░░░░░]  60%
+ 70% acc on Advanced drills     →  Tier 4  Proficient  ★★★★☆  [████████████████░░░░]  80%
+ 90% acc on Adv. + ≥10 Adv.    →  Tier 5  Mastered    ★★★★★  [████████████████████] 100%
 ```
 
 ### Progress Bar Color by Tier
@@ -214,7 +227,7 @@ One record per `(user_id, branch_key)` pair.
   "user_id": "u_abc123",
   "branch_key": "OpenRaise:premium:IP",
   "topic": "PreflopDecision",
-  "current_difficulty": "Intermediate",
+  "branch_level": "Intermediate",
   "correct_streak": 2,
   "wrong_streak": 0,
   "total_attempts": 12,
@@ -234,7 +247,7 @@ One immutable record per submitted answer (append-only log).
   "scenario_id": "PF-3A1B2C4D",
   "topic": "PreflopDecision",
   "branch_key": "OpenRaise:premium:IP",
-  "difficulty": "Intermediate",
+  "drill_difficulty": "Intermediate",
   "answer_id": "B",
   "is_correct": true,
   "timestamp": "2026-02-23T14:32:00Z"
@@ -247,7 +260,7 @@ One immutable record per submitted answer (append-only log).
 
 | Concept | Granularity | Key Formula |
 |---|---|---|
-| Points per answer | Per answer record | difficulty × (10/20/30) if correct, else 0 |
+| Points per answer | Per answer record | `drill_difficulty` × (10/20/30) if correct, else 0 |
 | Topic score | Per topic | Sum of points on that topic |
 | Lifetime score | Global | Sum of all topic scores |
 | Adaptive difficulty | Per branch_key | 3 correct in a row → promote; 2 wrong in a row → demote |
@@ -274,9 +287,9 @@ Color tiers (CSS class or color token):
 | 67 – 99       | green  | Advanced    |
 | 100           | gold   | Mastered    |
 
-Difficulty badge colors:
+**branch_level badge colors** (shown on branch rows — reflects the user's adaptive state, not the last drill):
 
-| Difficulty   | Badge style              |
+| branch_level | Badge style              |
 |--------------|--------------------------|
 | Beginner     | grey background          |
 | Intermediate | blue background          |
@@ -354,7 +367,7 @@ The top-level view shown after a player logs in or taps "My Stats".
 ```
 
 **Layout notes:**
-- Each topic row = topic name + difficulty badge + progress bar + pts + accuracy fraction.
+- Each topic row = topic name + `branch_level` badge (user's current adaptive level) + mastery progress bar + pts + accuracy fraction.
 - Rows are sorted by mastery descending by default; user can toggle sort.
 - "Not started" topics show an empty bar and greyed text.
 - The overall mastery bar at the top is the average of all 15 topic mastery values.
@@ -406,11 +419,11 @@ Tapping any topic row opens the detail view for that topic.
 ```
 
 **Layout notes:**
-- Each branch row shows its own mini progress bar, current difficulty badge, and streak indicator.
+- Each branch row shows its own mini progress bar, `branch_level` badge (the user's current adaptive level on that branch), and streak indicator.
 - Streak indicator: `✓✓` = 2 correct in a row, `✗` = last answer was wrong.
 - Recent activity log shows the last 5 answer records, newest first.
 - `+20` / `+0` shows points earned on each attempt.
-- "Drill This Topic" starts the next scenario for this topic at the user's current adaptive difficulty.
+- "Drill This Topic" starts the next scenario for this topic; the system sets `drill_difficulty` from the user's current `branch_level` for the lowest-mastery branch on this topic.
 
 ---
 
@@ -430,8 +443,8 @@ Shown immediately after the user submits an answer to a drill. Overlays or repla
 ║  PREFLOP DECISION  —  OpenRaise:premium:IP                   ║
 ║                                                              ║
 ║  Mastery    [████████████████░░░░]  80%   (was 75%)  ▲ +5   ║
-║  Streak     ✓ ✓  (1 more correct → ADVANCED)                 ║
-║  Difficulty [INTERMEDIATE]                                   ║
+║  Streak     ✓ ✓  (1 more correct → branch_level: ADVANCED)   ║
+║  Your level [INTERMEDIATE]  ·  This drill: Intermediate      ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║   [▶ Next Drill]             [✕ Back to Stats]               ║
@@ -453,8 +466,8 @@ Wrong answer variant:
 ║  PREFLOP DECISION  —  OpenRaise:marginal:OOP                 ║
 ║                                                              ║
 ║  Mastery    [██████████░░░░░░░░░░]  50%   (unchanged)        ║
-║  Streak     ✗ ✗  (1 more wrong → demoted to BEGINNER)        ║
-║  Difficulty [INTERMEDIATE]                                   ║
+║  Streak     ✗ ✗  (1 more wrong → branch_level: BEGINNER)     ║
+║  Your level [INTERMEDIATE]  ·  This drill: Intermediate      ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║   [▶ Try Again (same branch)]   [✕ Back to Stats]            ║
@@ -465,7 +478,7 @@ Wrong answer variant:
 - Mastery bar shows the delta `▲ +5` on correct, no delta on wrong (mastery only increases on correct).
 - Streak displays as filled dots or ✓/✗ icons, with a hint about the next threshold.
 - On wrong answer: reveal the correct answer ID and show the full explanation.
-- "Try Again" re-drills the same branch at the same difficulty.
+- "Try Again" re-drills the same branch; `drill_difficulty` is set from the (possibly updated) `branch_level`.
 
 ---
 
@@ -476,7 +489,7 @@ Wrong answer variant:
 | Overall mastery bar | Dashboard header | avg of all 15 `topic_mastery` values |
 | Per-topic mastery bar | Dashboard row, Topic detail | mastery tier (0–5) → bar % (0/20/40/60/80/100) |
 | Per-branch mastery bar | Topic detail — Branches | derived from `BranchStats` accuracy + current difficulty |
-| Difficulty badge | Dashboard row, Topic detail, Feedback panel | `BranchStats.current_difficulty` |
+| branch_level badge | Dashboard row, Topic detail, Feedback panel | `BranchStats.branch_level` — the user's adaptive state |
 | Streak indicator | Topic detail, Feedback panel | `BranchStats.correct_streak` / `wrong_streak` |
 | Lifetime score | Dashboard header | `UserProfile.lifetime_score` |
 | Points delta | Feedback panel | points earned on last answer |
