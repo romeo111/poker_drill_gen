@@ -1,8 +1,9 @@
 # poker_drill_gen
 
-Rust library that generates randomised poker training scenarios (6-max tables).
-Each scenario includes a hand situation, a multiple-choice question, and
-per-option explanations.
+A Rust library that generates poker training scenarios — randomised by default,
+fully deterministic with a seed. Feed it a topic (or a street) and get back a
+hand situation, a multiple-choice question, and an explanation for every answer
+option.
 
 ---
 
