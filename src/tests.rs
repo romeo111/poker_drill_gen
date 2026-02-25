@@ -2,7 +2,7 @@
 //!
 //! Included from `lib.rs` under `#[cfg(test)]`.
 //!
-//! # Coverage (44 tests)
+//! # Coverage (49 tests)
 //!
 //! | Group | What is tested |
 //! |-------|----------------|
@@ -13,20 +13,23 @@
 //! | Difficulty | All three levels produce valid scenarios |
 //! | Entropy | `rng_seed: None` produces a valid scenario (smoke test) |
 //! | TextStyle | Simple produces non-empty text; Simple ≠ Technical; correct answer unaffected by style |
+//! | Street selector | Street produces correct-street topic; deterministic; varies across seeds; round-trip |
 //! | ICM hand strength | Push/fold produces both pushes and folds across seeds |
 //! | Hand classification | classify_hand correctly categorises premium, strong, playable, marginal, trash |
 
 use crate::training_engine::{
-    generate_training, DifficultyLevel, GameType, Position, TextStyle, TrainingRequest,
+    generate_training, DifficultyLevel, GameType, Position, Street, TextStyle, TrainingRequest,
     TrainingTopic,
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 /// Build a deterministic `TrainingRequest` at Intermediate difficulty.
-fn req(topic: TrainingTopic, seed: u64) -> TrainingRequest {
+///
+/// Accepts `TrainingTopic` or `Street` via `Into<TopicSelector>`.
+fn req(topic: impl Into<crate::training_engine::TopicSelector>, seed: u64) -> TrainingRequest {
     TrainingRequest {
-        topic,
+        topic: topic.into(),
         difficulty: DifficultyLevel::Intermediate,
         rng_seed: Some(seed),
         text_style: TextStyle::Simple,
@@ -101,7 +104,7 @@ fn different_seeds_produce_varied_questions() {
 fn entropy_seed_produces_a_valid_scenario() {
     // Smoke test: rng_seed: None must not panic and must satisfy all invariants.
     let s = generate_training(TrainingRequest {
-        topic: TrainingTopic::PreflopDecision,
+        topic: TrainingTopic::PreflopDecision.into(),
         difficulty: DifficultyLevel::Intermediate,
         rng_seed: None,
         text_style: TextStyle::Simple,
@@ -276,7 +279,7 @@ fn all_difficulty_levels_produce_valid_scenarios() {
     ] {
         for topic in all_topics() {
             let s = generate_training(TrainingRequest {
-                topic,
+                topic: topic.into(),
                 difficulty: diff,
                 rng_seed: Some(1),
                 text_style: TextStyle::Simple,
@@ -294,7 +297,7 @@ fn all_difficulty_levels_produce_valid_scenarios() {
 fn text_style_simple_produces_non_empty_text() {
     for topic in all_topics() {
         let s = generate_training(TrainingRequest {
-            topic,
+            topic: topic.into(),
             difficulty: DifficultyLevel::Intermediate,
             rng_seed: Some(42),
             text_style: TextStyle::Simple,
@@ -322,13 +325,13 @@ fn text_style_technical_produces_different_text_than_simple() {
     ];
     for topic in sample_topics {
         let simple = generate_training(TrainingRequest {
-            topic,
+            topic: topic.into(),
             difficulty: DifficultyLevel::Intermediate,
             rng_seed: Some(42),
             text_style: TextStyle::Simple,
         });
         let technical = generate_training(TrainingRequest {
-            topic,
+            topic: topic.into(),
             difficulty: DifficultyLevel::Intermediate,
             rng_seed: Some(42),
             text_style: TextStyle::Technical,
@@ -346,13 +349,13 @@ fn text_style_does_not_affect_correct_answer() {
     for topic in all_topics() {
         for seed in [1u64, 42, 999] {
             let simple = generate_training(TrainingRequest {
-                topic,
+                topic: topic.into(),
                 difficulty: DifficultyLevel::Intermediate,
                 rng_seed: Some(seed),
                 text_style: TextStyle::Simple,
             });
             let technical = generate_training(TrainingRequest {
-                topic,
+                topic: topic.into(),
                 difficulty: DifficultyLevel::Intermediate,
                 rng_seed: Some(seed),
                 text_style: TextStyle::Technical,
@@ -724,7 +727,7 @@ fn classify_hand_strong_and_playable() {
 #[test]
 fn delayed_cbet_classify_turn_strength() {
     use crate::training_engine::models::{Card, Rank, Suit};
-    use crate::training_engine::topics::delayed_cbet::{classify_turn_strength, TurnStrength};
+    use crate::training_engine::topics::turn::{classify_turn_strength, TurnStrength};
 
     let c = |r: u8, s: Suit| Card { rank: Rank(r), suit: s };
 
@@ -772,7 +775,7 @@ fn delayed_cbet_classify_turn_strength() {
 #[test]
 fn delayed_cbet_classify_turn_card() {
     use crate::training_engine::models::{Card, Rank, Suit};
-    use crate::training_engine::topics::delayed_cbet::{classify_turn_card, TurnCard};
+    use crate::training_engine::topics::turn::{classify_turn_card, TurnCard};
 
     let c = |r: u8, s: Suit| Card { rank: Rank(r), suit: s };
 
@@ -840,6 +843,70 @@ fn delayed_cbet_has_4_board_cards_btn_hero_and_zero_bet() {
             s.table_setup.game_type,
             GameType::CashGame,
             "DelayedCbet must be a cash game (seed={seed})"
+        );
+    }
+}
+
+// ── street selector ──────────────────────────────────────────────────────
+
+#[test]
+fn street_selector_produces_topic_from_correct_street() {
+    for street in [Street::Preflop, Street::Flop, Street::Turn, Street::River] {
+        for seed in SEEDS {
+            let s = generate_training(req(street, seed));
+            assert!(
+                street.topics().contains(&s.topic),
+                "Street::{street:?} with seed={seed} produced {topic:?} which is not a {street:?} topic",
+                topic = s.topic,
+            );
+        }
+    }
+}
+
+#[test]
+fn street_selector_is_deterministic() {
+    for street in [Street::Preflop, Street::Flop, Street::Turn, Street::River] {
+        let a = generate_training(req(street, 42));
+        let b = generate_training(req(street, 42));
+        assert_eq!(a.scenario_id, b.scenario_id, "Street::{street:?} not deterministic");
+        assert_eq!(a.topic, b.topic, "Street::{street:?} picked different topics with same seed");
+    }
+}
+
+#[test]
+fn street_selector_varies_topics_across_seeds() {
+    // With enough seeds, a street with multiple topics should produce more than one.
+    for street in [Street::Preflop, Street::Flop] {
+        let mut seen = std::collections::HashSet::new();
+        for seed in 0..50u64 {
+            let s = generate_training(req(street, seed));
+            seen.insert(s.topic);
+        }
+        assert!(
+            seen.len() > 1,
+            "Street::{street:?} produced only one topic across 50 seeds: {:?}",
+            seen
+        );
+    }
+}
+
+#[test]
+fn topic_street_round_trip() {
+    for topic in all_topics() {
+        let street = topic.street();
+        assert!(
+            street.topics().contains(&topic),
+            "{topic:?}.street() = {street:?}, but {street:?}.topics() doesn't contain {topic:?}"
+        );
+    }
+}
+
+#[test]
+fn every_street_has_at_least_one_topic() {
+    for street in [Street::Preflop, Street::Flop, Street::Turn, Street::River] {
+        assert!(
+            !street.topics().is_empty(),
+            "Street::{street:?} has no topics"
         );
     }
 }

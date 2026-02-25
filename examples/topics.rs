@@ -1,17 +1,25 @@
 //! One illustrated example for every training topic.
 //!
-//! Run with:
-//!   cargo run --example topics
+//! Run with: `cargo run --example topics`
+//!
+//! This example is designed as a reference card — it shows what each of the
+//! 16 training topics teaches, with a concrete scenario generated from a fixed
+//! seed (deterministic, always the same output).
 //!
 //! Each block shows:
-//!   • What the topic teaches
-//!   • A concrete scenario (fixed seed → always the same cards)
-//!   • All answer options — correct one marked with ✓
-//!   • The full explanation for every choice
+//! - **What this teaches** — a short description of the poker skill being drilled.
+//! - **Situation** — hero hand, board, pot, bet.
+//! - **Question** — the multiple-choice question posed to the player.
+//! - **Answers** — all options with the correct one marked, plus full explanations.
+//!
+//! Topics are shown in Beginner difficulty with Simple text style so the output
+//! is accessible to new players.
 
 use poker_drill_gen::{generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic};
 
 // ── topic metadata ────────────────────────────────────────────────────────────
+// Each entry pairs a topic with a fixed seed and a description of what the
+// topic teaches.  Seeds are chosen to produce representative scenarios.
 
 struct TopicMeta {
     topic: TrainingTopic,
@@ -133,7 +141,7 @@ fn divider(ch: char, n: usize) { println!("{}", ch.to_string().repeat(n)); }
 
 fn print_example(meta: &TopicMeta) {
     let scenario = generate_training(TrainingRequest {
-        topic: meta.topic,
+        topic: meta.topic.into(),
         difficulty: DifficultyLevel::Beginner,
         rng_seed: Some(meta.seed),
         text_style: TextStyle::Simple,

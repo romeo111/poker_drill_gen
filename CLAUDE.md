@@ -13,12 +13,14 @@ cargo run --example demo
 
 ## Project Overview
 Rust library crate that generates randomized poker training scenarios.
-Dependencies: `rand = "0.8"`, `serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`.
+Dependencies: `rand = "0.8"`, `serde = { version = "1", features = ["derive"] }`.
 
 **Public API:**
 ```rust
 pub fn generate_training(request: TrainingRequest) -> TrainingScenario
 ```
+- `TrainingRequest::new(topic)` — minimal constructor, accepts `TrainingTopic` or `Street`
+- Only `topic` is required; `difficulty` (Beginner), `rng_seed` (None), `text_style` (Simple) have defaults
 - `rng_seed: Some(u64)` → deterministic output (used by tests)
 - `rng_seed: None` → entropy-based
 
@@ -33,38 +35,30 @@ src/
     mod.rs                        ← pub re-exports + sub-mod declarations
     models.rs                     ← all shared types (Card, Position, TrainingScenario, …)
     deck.rs                       ← Deck struct + Fisher-Yates shuffle
-    evaluator.rs                  ← board_texture, pot-odds math, draw equity helpers, hand classification (HandCategory, classify_hand)
+    evaluator.rs                  ← board_texture, pot-odds math, draw equity, hand classification, suit_index, DrawType
+    helpers.rs                    ← shared builder functions (deal, hand_str, board_str, styled, answer, heads_up, scenario)
     generator.rs                  ← generate_training() dispatch + make_scenario_id()
     topics/
       mod.rs
-      preflop.rs        (PF-)
-      postflop.rs       (CB-)
-      pot_odds.rs       (PO-)
-      bluff.rs          (BL-)
-      icm.rs            (IC-)
-      turn_barrel.rs    (TB-)
-      check_raise.rs    (CR-)
-      semi_bluff.rs     (SB-)
-      anti_limper.rs    (AL-)
-      river_value_bet.rs  (RV-)
-      squeeze_play.rs     (SQ-)
-      big_blind_defense.rs(BD-)
-      three_bet_pot_cbet.rs(3B-)
-      river_call_or_fold.rs(RF-)
-      turn_probe_bet.rs   (PB-)
-      delayed_cbet.rs     (DC-)
+      preflop.rs                  ← PF-, IC-, AL-, SQ-, BD- (5 preflop topics)
+      flop.rs                     ← CB-, PO-, CR-, SB-, 3B- (5 flop topics)
+      turn.rs                     ← TB-, PB-, DC- (3 turn topics)
+      river.rs                    ← BL-, RV-, RF- (3 river topics)
 examples/
-  demo.rs
+  demo.rs                         ← TextStyle comparison + all 16 topics
+  topics.rs                       ← one illustrated example per topic
 docs/
-  README.md
-  topics/  ← one .md per topic (01_preflop_decision.md … 16_delayed_cbet.md)
+  README.md                       ← API reference, architecture, glossary
+  how_it_works.md                 ← beginner-friendly site copy
+  topics/                         ← one .md per topic (01_preflop_decision.md … 16_delayed_cbet.md)
 ```
 
 ---
 
 ## Key Design Conventions
-- Each topic module has a single public function:
-  `pub fn generate<R: Rng>(rng: &mut R, difficulty: DifficultyLevel, scenario_id: String, text_style: TextStyle) -> TrainingScenario`
+- Topics are grouped by street into 4 files (preflop.rs, flop.rs, turn.rs, river.rs).
+  Each public function follows: `pub fn generate_<name><R: Rng>(rng, difficulty, scenario_id, text_style) -> TrainingScenario`
+- Shared helpers in `helpers.rs` eliminate boilerplate: `deal()`, `hand_str()`, `board_str()`, `styled()`, `answer()`, `heads_up()`, `scenario()`
 - **Single correct answer invariant:** use a `correct: &str` ID (`"A"`, `"B"`, or `"C"`) and match it to `AnswerOption.is_correct`. Never mark multiple answers correct.
 - Explanations are dynamically formatted strings — not static templates.
 - `board_texture()` in `evaluator.rs` drives c-bet sizing choices in postflop topics.
@@ -95,7 +89,7 @@ docs/
 ---
 
 ## Hand Classification (5-category)
-Defined in `evaluator.rs` (`HandCategory` enum + `classify_hand()`); used by `preflop.rs` and `anti_limper.rs`:
+Defined in `evaluator.rs` (`HandCategory` enum + `classify_hand()`); used by `preflop.rs`:
 - **Premium**: AA, KK, QQ, AKs
 - **Strong**: JJ, TT, AQo, AKo, AQs
 - **Playable**: 99–77, AJs, KQs, suited connectors

@@ -1,26 +1,37 @@
-//! Full randomised demo of all 16 training topics.
+//! Full demo of all 16 training topics.
 //!
-//! Run with: cargo run --example demo
+//! Run with: `cargo run --example demo`
 //!
-//! # TextStyle
+//! This example shows how `poker_drill_gen` works end to end:
 //!
-//! Every `TrainingRequest` includes a `text_style` field that controls the
-//! language used in the question and answer explanations:
+//! 1. **TextStyle comparison** — the same BluffSpot hand is generated twice
+//!    (same seed = same cards) in Simple and Technical mode, showing how the
+//!    wording changes while the game logic stays identical.
 //!
-//! - `TextStyle::Simple`    — plain English, no poker jargon (the default)
-//! - `TextStyle::Technical` — standard poker terminology (SPR, EV, fold equity, c-bet, …)
+//! 2. **All 16 topics** — one scenario per topic in Simple mode with fixed
+//!    seeds, so the output is deterministic and reproducible.
 //!
-//! The game logic (correct answer, cards dealt, bet sizes) is identical in
-//! both modes.  This demo shows both styles side-by-side for BluffSpot, then
-//! runs all 16 topics in Simple mode.
+//! ## Key concepts demonstrated
+//!
+//! - `TrainingRequest::new(topic)` — minimal one-argument constructor; accepts
+//!   `TrainingTopic` or `Street` directly. Defaults: Beginner, entropy, Simple.
+//! - `rng_seed: Some(u64)` makes the output fully deterministic.
+//! - `TextStyle::Simple` uses plain English; `TextStyle::Technical` uses
+//!   poker jargon (SPR, EV, fold equity, c-bet, etc.).
+//! - The correct answer, cards dealt, and bet sizes are the same in both modes.
+//! - Each scenario includes a `branch_key` for progress tracking.
 
 use poker_drill_gen::{
-    generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic,
+    generate_training, DifficultyLevel, Street, TextStyle, TrainingRequest, TrainingTopic,
 };
 
+/// Generate and pretty-print one scenario.
+///
+/// Shows: topic, game type, text style, scenario ID, branch key, hero hand,
+/// board, pot, question, and all answers with explanations.
 fn print_scenario(topic: TrainingTopic, seed: u64, style: TextStyle) {
     let scenario = generate_training(TrainingRequest {
-        topic,
+        topic: topic.into(),
         difficulty: DifficultyLevel::Intermediate,
         rng_seed: Some(seed),
         text_style: style,
@@ -57,14 +68,30 @@ fn print_scenario(topic: TrainingTopic, seed: u64, style: TextStyle) {
 }
 
 fn main() {
-    // ── TextStyle comparison: same hand, two styles ───────────────────────────
+    // ── Minimal API ────────────────────────────────────────────────────────
+    // TrainingRequest::new() only requires a topic — everything else defaults.
+    // Accepts TrainingTopic or Street directly (no .into() needed).
+    println!();
+    println!("══ Minimal API: TrainingRequest::new() ══");
+    println!();
+    let s1 = generate_training(TrainingRequest::new(TrainingTopic::PreflopDecision));
+    println!("  Specific topic:  {}  ID: {}", s1.topic, s1.scenario_id);
+    let s2 = generate_training(TrainingRequest::new(Street::Flop));
+    println!("  Random from Flop: {}  ID: {}", s2.topic, s2.scenario_id);
+    println!();
+
+    // ── TextStyle comparison ─────────────────────────────────────────────────
+    // Same topic + same seed = same cards, same correct answer.
+    // Only the wording changes between Simple and Technical.
     println!();
     println!("══ TextStyle comparison: BluffSpot seed=4004 ══");
     println!();
     print_scenario(TrainingTopic::BluffSpot, 4004, TextStyle::Simple);
     print_scenario(TrainingTopic::BluffSpot, 4004, TextStyle::Technical);
 
-    // ── All 16 topics in Simple mode ─────────────────────────────────────────
+    // ── All 16 topics ────────────────────────────────────────────────────────
+    // One scenario per topic, fixed seed for reproducible output.
+    // Topics are ordered by their internal number (T1–T16).
     println!();
     println!("══ All 16 topics (Simple mode) ══");
     println!();
@@ -90,5 +117,30 @@ fn main() {
 
     for (topic, seed) in topics {
         print_scenario(topic, seed, TextStyle::Simple);
+    }
+
+    // ── Street selector ──────────────────────────────────────────────────────
+    // Instead of a specific topic, pass a Street to get a random topic from
+    // that street.  Same seed → same topic + same scenario (deterministic).
+    println!();
+    println!("══ Street selector: one random drill per street ══");
+    println!();
+
+    for (street, seed) in [
+        (Street::Preflop, 7001u64),
+        (Street::Flop,    7002),
+        (Street::Turn,    7003),
+        (Street::River,   7004),
+    ] {
+        let scenario = generate_training(TrainingRequest {
+            topic: street.into(),
+            difficulty: DifficultyLevel::Intermediate,
+            rng_seed: Some(seed),
+            text_style: TextStyle::Simple,
+        });
+        println!("  Street: {street}  →  Topic picked: {}  ID: {}",
+            scenario.topic, scenario.scenario_id);
+        println!("  Q: {}", scenario.question);
+        println!();
     }
 }

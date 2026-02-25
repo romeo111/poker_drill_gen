@@ -9,22 +9,69 @@ a per-option explanation so players understand the *why* behind each decision.
 ## Quick Start
 
 ```rust
-use poker_drill_gen::{generate_training, DifficultyLevel, TextStyle, TrainingRequest, TrainingTopic};
+use poker_drill_gen::{
+    generate_training, DifficultyLevel, Street, TextStyle, TrainingRequest, TrainingTopic,
+};
 
+// Minimal — only topic is required (defaults: Beginner, entropy, Simple):
+let scenario = generate_training(TrainingRequest::new(TrainingTopic::PreflopDecision));
+println!("{}", scenario.question);
+
+// Random topic from a street (minimal):
+let flop_drill = generate_training(TrainingRequest::new(Street::Flop));
+println!("Got: {}", flop_drill.topic); // e.g. "Check-Raise Spot"
+
+// Full control — set every field explicitly:
 let scenario = generate_training(TrainingRequest {
-    topic:      TrainingTopic::PreflopDecision,
-    difficulty: DifficultyLevel::Beginner,
+    topic:      TrainingTopic::BluffSpot.into(),
+    difficulty: DifficultyLevel::Intermediate,
     rng_seed:   Some(42), // deterministic; use None for entropy
-    text_style: TextStyle::Simple,  // plain English (default); or TextStyle::Technical
+    text_style: TextStyle::Technical,
 });
 
-println!("{}", scenario.question);
 for ans in &scenario.answers {
-    let mark = if ans.is_correct { "✓" } else { " " };
+    let mark = if ans.is_correct { "+" } else { " " };
     println!("[{mark}] {} — {}", ans.id, ans.text);
     println!("    {}", ans.explanation);
 }
 ```
+
+---
+
+## Architecture
+
+```
+src/
+  lib.rs                          crate root — re-exports the public API
+  tests.rs                        49 unit tests (determinism, invariants, per-topic, street selector)
+  training_engine/
+    mod.rs                        module declarations + re-exports
+    models.rs                     all shared types (Card, Position, TrainingScenario, ...)
+    deck.rs                       52-card deck, Fisher-Yates shuffle, deterministic dealing
+    evaluator.rs                  board texture, draw classification, pot odds, hand strength
+    helpers.rs                    shared builders (deal, hand_str, board_str, answer, scenario)
+    generator.rs                  generate_training() — single entry point, dispatches to topics
+    topics/
+      mod.rs
+      preflop.rs                  T1 PF-, T5 IC-, T9 AL-, T11 SQ-, T12 BD-  (5 topics)
+      flop.rs                     T2 CB-, T3 PO-, T7 CR-, T8 SB-, T13 3B-   (5 topics)
+      turn.rs                     T6 TB-, T15 PB-, T16 DC-                   (3 topics)
+      river.rs                    T4 BL-, T10 RV-, T14 RF-                   (3 topics)
+```
+
+**How a scenario is generated:**
+
+1. `generate_training()` in `generator.rs` creates a deterministic RNG from the
+   request seed, generates a unique scenario ID, and dispatches to the correct
+   topic generator.
+2. The topic generator shuffles a deck, deals hero cards and the board, classifies
+   the situation (hand strength, board texture, draw type, etc.), determines the
+   correct answer based on poker strategy, and builds dynamic explanations for
+   every option.
+3. Shared helpers in `helpers.rs` handle the boilerplate: dealing, string
+   formatting, answer construction, and final scenario assembly.
+4. Analysis primitives in `evaluator.rs` (board texture, draw equity, hand
+   classification) are shared across all topics — never duplicated.
 
 ---
 
@@ -37,12 +84,24 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 
 **`TrainingRequest` fields**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `topic` | `TrainingTopic` | Which of the 16 topics to generate |
-| `difficulty` | `DifficultyLevel` | `Beginner`, `Intermediate`, or `Advanced` |
-| `rng_seed` | `Option<u64>` | `Some(seed)` for deterministic output; `None` for entropy |
-| `text_style` | `TextStyle` | `Simple` (plain English, default) or `Technical` (poker jargon) |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `topic` | `TopicSelector` | *(required)* | What to drill — a specific `TrainingTopic` or a `Street` (use `.into()`) |
+| `difficulty` | `DifficultyLevel` | `Beginner` | `Beginner`, `Intermediate`, or `Advanced` |
+| `rng_seed` | `Option<u64>` | `None` | `Some(seed)` for deterministic output; `None` for entropy |
+| `text_style` | `TextStyle` | `Simple` | `Simple` (plain English) or `Technical` (poker jargon) |
+
+Only `topic` is required. Use `TrainingRequest::new(topic)` for the shortest form — it
+accepts both `TrainingTopic` and `Street` directly (no `.into()` needed).
+
+**`TopicSelector` variants**
+
+| Variant | Example | Behaviour |
+|---------|---------|-----------|
+| `Topic(TrainingTopic)` | `TrainingTopic::BluffSpot.into()` | Generate that exact topic |
+| `Street(Street)` | `Street::Flop.into()` | Pick a random topic from the street |
+
+**`Street` variants**: `Preflop`, `Flop`, `Turn`, `River`
 
 **`TrainingScenario` fields**
 
@@ -66,24 +125,27 @@ The single public entry point. Accepts a `TrainingRequest` and returns a fully-b
 
 ## Training Topics
 
-| # | Topic | Street | Enum Variant | Scenario ID Prefix |
-|---|-------|--------|-------------|--------------------|
-| 1 | [Preflop Decision](topics/01_preflop_decision.md) | Preflop | `PreflopDecision` | `PF-` |
-| 2 | [Postflop Continuation Bet](topics/02_postflop_continuation_bet.md) | Flop | `PostflopContinuationBet` | `CB-` |
-| 3 | [Pot Odds & Equity](topics/03_pot_odds_and_equity.md) | Flop | `PotOddsAndEquity` | `PO-` |
-| 4 | [Bluff Spot](topics/04_bluff_spot.md) | River | `BluffSpot` | `BL-` |
-| 5 | [ICM & Tournament Decision](topics/05_icm_tournament_decision.md) | Preflop | `ICMAndTournamentDecision` | `IC-` |
-| 6 | [Turn Barrel Decision](topics/06_turn_barrel_decision.md) | Turn | `TurnBarrelDecision` | `TB-` |
-| 7 | [Check-Raise Spot](topics/07_check_raise_spot.md) | Flop | `CheckRaiseSpot` | `CR-` |
-| 8 | [Semi-Bluff Decision](topics/08_semi_bluff_decision.md) | Flop | `SemiBluffDecision` | `SB-` |
-| 9 | [Anti-Limper Isolation](topics/09_anti_limper_isolation.md) | Preflop | `AntiLimperIsolation` | `AL-` |
-| 10 | [River Value Bet](topics/10_river_value_bet.md) | River | `RiverValueBet` | `RV-` |
-| 11 | [Squeeze Play](topics/11_squeeze_play.md) | Preflop | `SqueezePlay` | `SQ-` |
-| 12 | [Big Blind Defense](topics/12_big_blind_defense.md) | Preflop | `BigBlindDefense` | `BD-` |
-| 13 | [3-Bet Pot C-Bet](topics/13_three_bet_pot_cbet.md) | Flop | `ThreeBetPotCbet` | `3B-` |
-| 14 | [River Call or Fold](topics/14_river_call_or_fold.md) | River | `RiverCallOrFold` | `RF-` |
-| 15 | [Turn Probe Bet](topics/15_turn_probe_bet.md) | Turn | `TurnProbeBet` | `PB-` |
-| 16 | [Delayed C-Bet](topics/16_delayed_cbet.md) | Turn | `DelayedCbet` | `DC-` |
+Use `Street::X.into()` to get a random topic from a street, or `TrainingTopic::X.into()`
+for an exact topic.
+
+| Street | # | Topic | Enum Variant | ID Prefix |
+|--------|---|-------|-------------|-----------|
+| **Preflop** | 1 | [Preflop Decision](topics/01_preflop_decision.md) | `PreflopDecision` | `PF-` |
+| | 5 | [ICM & Tournament Decision](topics/05_icm_tournament_decision.md) | `ICMAndTournamentDecision` | `IC-` |
+| | 9 | [Anti-Limper Isolation](topics/09_anti_limper_isolation.md) | `AntiLimperIsolation` | `AL-` |
+| | 11 | [Squeeze Play](topics/11_squeeze_play.md) | `SqueezePlay` | `SQ-` |
+| | 12 | [Big Blind Defense](topics/12_big_blind_defense.md) | `BigBlindDefense` | `BD-` |
+| **Flop** | 2 | [Postflop Continuation Bet](topics/02_postflop_continuation_bet.md) | `PostflopContinuationBet` | `CB-` |
+| | 3 | [Pot Odds & Equity](topics/03_pot_odds_and_equity.md) | `PotOddsAndEquity` | `PO-` |
+| | 7 | [Check-Raise Spot](topics/07_check_raise_spot.md) | `CheckRaiseSpot` | `CR-` |
+| | 8 | [Semi-Bluff Decision](topics/08_semi_bluff_decision.md) | `SemiBluffDecision` | `SB-` |
+| | 13 | [3-Bet Pot C-Bet](topics/13_three_bet_pot_cbet.md) | `ThreeBetPotCbet` | `3B-` |
+| **Turn** | 6 | [Turn Barrel Decision](topics/06_turn_barrel_decision.md) | `TurnBarrelDecision` | `TB-` |
+| | 15 | [Turn Probe Bet](topics/15_turn_probe_bet.md) | `TurnProbeBet` | `PB-` |
+| | 16 | [Delayed C-Bet](topics/16_delayed_cbet.md) | `DelayedCbet` | `DC-` |
+| **River** | 4 | [Bluff Spot](topics/04_bluff_spot.md) | `BluffSpot` | `BL-` |
+| | 10 | [River Value Bet](topics/10_river_value_bet.md) | `RiverValueBet` | `RV-` |
+| | 14 | [River Call or Fold](topics/14_river_call_or_fold.md) | `RiverCallOrFold` | `RF-` |
 
 
 ---
@@ -113,29 +175,6 @@ FlushDraw:Call           ← pot-odds spot, flush draw, call is correct
 Use `branch_key` to track which decision types a student has mastered. The key is
 stable across different seeds — you can always regenerate a specific branch for
 targeted practice.
-
----
-
-## Player Statistics & Adaptive Difficulty
-
-The library generates stateless scenarios — it does not track users. A backend layer
-records answers and manages per-user state. See **[user_statistics.md](user_statistics.md)**
-for the full specification, which covers:
-
-- **What to record** per answer (`scenario_id`, `branch_key`, `drill_difficulty`, etc.)
-- **Scoring** — 10 / 20 / 30 pts by `drill_difficulty`; wrong answers score 0
-- **Adaptive `branch_level`** — the user's current level per branch, promoted after 3 correct
-  in a row, demoted after 2 wrong in a row; independent of `drill_difficulty`
-- **Mastery tiers** — 5-tier star system (Unstarted → Learning → Developing → Competent →
-  Proficient → Mastered) based on accuracy thresholds at each difficulty level
-- **UX/UI mockups** — dashboard, topic detail, and post-answer feedback panel
-
-> **`difficulty` in `TrainingRequest` vs `branch_level` in stats**
->
-> The `difficulty` field you pass to `generate_training()` becomes `drill_difficulty` in the
-> stats layer — it is stamped on the answer record as a historical fact. `branch_level` is
-> the user's adaptive state stored by the backend; it determines what `difficulty` to pass
-> for the user's next drill on that branch.
 
 ---
 

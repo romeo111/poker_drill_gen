@@ -1,3 +1,25 @@
+//! Board analysis, draw detection, pot-odds math, and hand classification.
+//!
+//! This module contains all the poker-analysis primitives shared across topic
+//! generators.  No topic module should duplicate this logic.
+//!
+//! ## Board texture
+//! `board_texture()` classifies a board as Dry, SemiWet, or Wet based on flush
+//! and straight draw potential.  C-bet sizing in flop topics is driven by this.
+//!
+//! ## Draw classification
+//! `DrawType` + `classify_draw()` identify the strongest draw present on a
+//! board.  Used by pot-odds (T3), semi-bluff (T8), and check-raise (T7).
+//! `draw_equity_flop()` returns approximate equity for each draw type.
+//!
+//! ## Hand classification (5-category)
+//! `HandCategory` + `classify_hand()` sort a 2-card hand into Premium / Strong /
+//! Playable / Marginal / Trash.  Used by preflop topics (T1, T9, T11, T12).
+//!
+//! ## Pot odds
+//! `required_equity()` computes the minimum equity needed to break even on a
+//! call: `call / (pot + call)`.
+
 use crate::training_engine::models::{Card, Suit};
 
 /// Describes the texture of a flop/board for human-readable explanations.
@@ -121,7 +143,17 @@ pub fn required_equity(call_amount: u32, pot_before_call: u32) -> f32 {
 }
 
 // ---------------------------------------------------------------------------
-// Hand strength classification (5-category, used by preflop + anti-limper)
+// Hand strength classification (5-category)
+//
+// Used by preflop topics to decide the correct action.  The classification
+// is intentionally coarse — it captures the strategic tier of a starting hand
+// without full equity calculations:
+//
+//   Premium  — AA, KK, QQ, AKs             → always raise / 3-bet / push
+//   Strong   — JJ, TT, AQo, AKo, AQs       → raise, call 3-bets
+//   Playable — 99-77, AJs, KQs, suited conn → open, call, sometimes fold
+//   Marginal — 66-22, KJo, weak aces        → fold or limp, rarely raise
+//   Trash    — everything else               → always fold facing action
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +212,87 @@ pub fn hand_category_name(cat: HandCategory) -> &'static str {
         HandCategory::Marginal => "marginal",
         HandCategory::Trash    => "trash",
     }
+}
+
+// ---------------------------------------------------------------------------
+// Suit index helper
+//
+// Suit has no numeric representation by design — we use an explicit match
+// to convert to an array index.  Never cast Suit as usize.
+// ---------------------------------------------------------------------------
+
+/// Convert Suit to array index (0–3).  Uses explicit match, not `as usize`.
+pub fn suit_index(s: Suit) -> usize {
+    match s {
+        Suit::Clubs    => 0,
+        Suit::Diamonds => 1,
+        Suit::Hearts   => 2,
+        Suit::Spades   => 3,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Draw classification
+//
+// Shared by pot-odds (T3), semi-bluff (T8), and check-raise (T7) topics.
+// ComboDraw (flush + straight) is the strongest, GutShot the weakest.
+// `draw_equity_flop()` returns approximate equity with 2 streets remaining.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DrawType {
+    ComboDraw,
+    FlushDraw,
+    OESD,
+    GutShot,
+}
+
+impl std::fmt::Display for DrawType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DrawType::ComboDraw => write!(f, "combo draw (flush + straight)"),
+            DrawType::FlushDraw => write!(f, "flush draw"),
+            DrawType::OESD      => write!(f, "open-ended straight draw"),
+            DrawType::GutShot   => write!(f, "gutshot straight draw"),
+        }
+    }
+}
+
+/// Classify the draw type present on the board.
+pub fn classify_draw(board: &[Card]) -> DrawType {
+    match (has_flush_draw(board), has_straight_draw(board)) {
+        (true, true)  => DrawType::ComboDraw,
+        (true, false) => DrawType::FlushDraw,
+        (false, true) => DrawType::OESD,
+        _             => DrawType::GutShot,
+    }
+}
+
+/// Approximate flop equity for a given draw type (2 streets remaining).
+pub fn draw_equity_flop(dt: DrawType) -> f32 {
+    match dt {
+        DrawType::ComboDraw => 0.54,
+        DrawType::FlushDraw => 0.35,
+        DrawType::OESD      => 0.32,
+        DrawType::GutShot   => 0.17,
+    }
+}
+
+/// True if hero holds a card matching a suit with 2+ board cards.
+pub fn hero_has_flush_draw(hand: [Card; 2], board: &[Card]) -> bool {
+    let mut counts = [0u8; 4];
+    for c in board { counts[suit_index(c.suit)] += 1; }
+    hand.iter().any(|c| counts[suit_index(c.suit)] >= 2)
+}
+
+/// True if hero participates in a straight draw on the board.
+pub fn hero_has_straight_draw(hand: [Card; 2], board: &[Card]) -> bool {
+    if !has_straight_draw(board) { return false; }
+    let board_ranks: Vec<u8> = board.iter().map(|c| c.rank.0).collect();
+    hand.iter().any(|hc| board_ranks.iter().any(|&br| {
+        let diff = if hc.rank.0 > br { hc.rank.0 - br } else { br - hc.rank.0 };
+        diff <= 3
+    }))
 }
 
 #[cfg(test)]

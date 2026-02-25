@@ -1,7 +1,21 @@
+//! Standard 52-card deck with Fisher-Yates shuffle.
+//!
+//! The deck is shuffled once at construction using the provided RNG, then cards
+//! are dealt sequentially via a cursor.  This guarantees that every card appears
+//! exactly once and that the deal order is fully determined by the RNG state —
+//! critical for the engine's determinism guarantee.
+//!
+//! Most topic generators call [`helpers::deal()`](super::helpers::deal) which
+//! wraps `Deck::new_shuffled` + two hero cards + N board cards.  Topics that
+//! need flop and turn dealt separately (e.g. turn barrel) use the deck directly.
+
 use rand::Rng;
 use crate::training_engine::models::{Card, Rank, Suit};
 
 /// A standard 52-card deck that can be shuffled and dealt from.
+///
+/// Cards are stored in a `Vec` and dealt via an advancing cursor.
+/// The deck panics if you try to deal more than 52 cards.
 pub struct Deck {
     cards: Vec<Card>,
     cursor: usize,

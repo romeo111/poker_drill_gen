@@ -144,7 +144,6 @@ let s = generate_training(TrainingRequest {
 ```
 src/
   lib.rs                        ← crate root and re-exports
-  nt_adapter.rs                 ← to_nt_table_state() JSON adapter
   tests.rs                      ← 44 unit tests
   training_engine/
     models.rs                   ← all shared types
@@ -158,6 +157,7 @@ examples/
 docs/
   README.md                     ← API reference
   TECHNICAL_SPEC.md             ← full reverse-engineering spec
+  how_it_works.md               ← beginner-friendly site copy
   topics/                       ← one deep-dive per topic (poker theory + engine notes)
 ```
 
@@ -212,7 +212,6 @@ hand classification, and delayed c-bet turn/strength classification.
 |-------|---------|---------|
 | `rand` | 0.8 | PRNG (`StdRng` / ChaCha12), Fisher-Yates shuffle |
 | `serde` | 1 | Serialization derive macros |
-| `serde_json` | 1 | JSON output for the NT adapter |
 
 ---
 
@@ -222,4 +221,5 @@ hand classification, and delayed c-bet turn/strength classification.
 |------|---------|
 | [`docs/README.md`](docs/README.md) | API reference, quick-start, glossary |
 | [`docs/TECHNICAL_SPEC.md`](docs/TECHNICAL_SPEC.md) | Language-agnostic spec — data types, all 16 decision tables, invariants |
+| [`docs/how_it_works.md`](docs/how_it_works.md) | Beginner-friendly overview of the drill system |
 | [`docs/topics/`](docs/topics/) | Deep-dive per topic: poker theory, worked examples, engine notes |
