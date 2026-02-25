@@ -39,10 +39,10 @@ Your seat at the table determines when you act. Acting **last** (late position) 
 information: you see what everyone else does before you commit chips.
 
 ```
-Early position (UTG, UTG+1, UTG+2)  →  tightest range
-Middle position (Lojack, Hijack)     →  moderate range
-Late position (Cutoff, Button)       →  widest range
-Blinds (SB, BB)                      →  defend wide, but OOP postflop
+Early position (UTG)           →  tightest range
+Middle position (Hijack)       →  moderate range
+Late position (Cutoff, Button) →  widest range
+Blinds (SB, BB)                →  defend wide, but OOP postflop
 ```
 
 **Rule of thumb:** You can profitably open-raise hands from the Button that you must fold
@@ -154,7 +154,7 @@ advantage vs a balanced 3-bet range (~50% equity vs most ranges).
 - Scenarios randomly select `OpenRaise`, `FacingOpen`, or `ThreeBetPot` with equal
   probability.
 - Stack depth is sampled per difficulty (Beginner: 80–120 BB; Advanced: 15–300 BB).
-- Table size alternates 6-max / 9-max randomly; position is sampled from the active pool.
+- Table is always 6-max; position is sampled from the 6-max pool (UTG, HJ, CO, BTN, SB, BB).
 - The engine guarantees exactly one correct answer per scenario using a `correct: &str`
   ID matched against each `AnswerOption`.
 

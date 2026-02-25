@@ -74,7 +74,7 @@ impl fmt::Display for Card {
 // Table / game metadata
 //
 // GameType distinguishes cash games (fixed blinds) from tournaments (ICM).
-// Position encodes all 9-max seats; `is_late()` returns true for CO and BTN
+// Position encodes all 6-max seats; `is_late()` returns true for CO and BTN
 // which act last postflop — a key strategic advantage.
 // PlayerState carries per-seat info used by the scenario UI.
 // ---------------------------------------------------------------------------
@@ -96,10 +96,7 @@ impl fmt::Display for GameType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Position {
-    UTG,
-    UTG1,
-    UTG2,
-    LJ,   // Lojack
+    UTG,  // Under the Gun
     HJ,   // Hijack
     CO,   // Cutoff
     BTN,  // Button
@@ -111,9 +108,6 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Position::UTG  => "UTG",
-            Position::UTG1 => "UTG+1",
-            Position::UTG2 => "UTG+2",
-            Position::LJ   => "Lojack",
             Position::HJ   => "Hijack",
             Position::CO   => "Cutoff",
             Position::BTN  => "Button",

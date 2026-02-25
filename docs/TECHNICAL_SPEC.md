@@ -86,10 +86,9 @@ GameType:
   CashGame | Tournament
   Display: "Cash Game" | "Tournament"
 
-Position:
-  UTG | UTG1 | UTG2 | LJ | HJ | CO | BTN | SB | BB
-  Display: "UTG" | "UTG+1" | "UTG+2" | "Lojack" | "Hijack" | "Cutoff" | "Button"
-           | "Small Blind" | "Big Blind"
+Position (6-max):
+  UTG | HJ | CO | BTN | SB | BB
+  Display: "UTG" | "Hijack" | "Cutoff" | "Button" | "Small Blind" | "Big Blind"
   is_late(): true when CO or BTN
 
 DifficultyLevel:
@@ -297,7 +296,7 @@ Each generator follows this pattern:
 
 **Game type:** CashGame
 **Board cards:** 0
-**Players:** All positions for 6-max or 9-max (randomly chosen)
+**Players:** All 6 positions (UTG, HJ, CO, BTN, SB, BB)
 
 #### Hand Classification (5 categories)
 

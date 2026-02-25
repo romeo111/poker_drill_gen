@@ -7,7 +7,7 @@
 //! ## Topics in this file
 //!
 //! - **T1 Preflop Decision** (`generate` / `generate_open`) — Open-raise, call,
-//!   or fold based on hand category, position (6-max or 9-max), and spot type
+//!   or fold based on hand category, position (6-max), and spot type
 //!   (OpenRaise / FacingOpen / ThreeBetPot).
 //! - **T5 ICM & Tournament** (`generate_icm`) — Push or fold in a tournament
 //!   setting.  Uses a PushTier system: base threshold per tournament stage,
@@ -56,15 +56,8 @@ const POSITIONS_6MAX: &[Position] = &[
     Position::BTN, Position::SB, Position::BB,
 ];
 
-const POSITIONS_9MAX: &[Position] = &[
-    Position::UTG, Position::UTG1, Position::UTG2,
-    Position::LJ, Position::HJ, Position::CO,
-    Position::BTN, Position::SB, Position::BB,
-];
-
-fn random_position<R: Rng>(rng: &mut R, is_6max: bool) -> Position {
-    let pool = if is_6max { POSITIONS_6MAX } else { POSITIONS_9MAX };
-    pool[rng.gen_range(0..pool.len())]
+fn random_position<R: Rng>(rng: &mut R) -> Position {
+    POSITIONS_6MAX[rng.gen_range(0..POSITIONS_6MAX.len())]
 }
 
 fn stack_for_difficulty<R: Rng>(rng: &mut R, diff: DifficultyLevel) -> u32 {
@@ -87,7 +80,9 @@ pub fn generate<R: Rng>(
 
 /// T1 — Preflop Decision (PF-).
 ///
-/// RNG order: gen_bool → gen_range(0..3) → position → stack → Deck::new_shuffled
+/// Always generates a 6-max table.
+///
+/// RNG order: gen_range(0..3) → position → stack → Deck::new_shuffled
 /// → deal×2 → per-player stacks → build_spot (no further rng).
 pub fn generate_open<R: Rng>(
     rng: &mut R,
@@ -95,10 +90,8 @@ pub fn generate_open<R: Rng>(
     scenario_id: String,
     text_style: TextStyle,
 ) -> TrainingScenario {
-    let is_6max = rng.gen_bool(0.5);
-    let table_size = if is_6max { 6usize } else { 9 };
     let spot = select_spot(rng);
-    let hero_pos = random_position(rng, is_6max);
+    let hero_pos = random_position(rng);
     let effective_stack = stack_for_difficulty(rng, difficulty);
 
     let mut deck = Deck::new_shuffled(rng);
@@ -112,9 +105,8 @@ pub fn generate_open<R: Rng>(
         PreflopSpot::FacingOpen  => format!("FacingOpen:{}:{}", hand_category_name(cat), pos_type),
     };
 
-    // Build player list (simplified)
-    let positions = if is_6max { POSITIONS_6MAX } else { POSITIONS_9MAX };
-    let players: Vec<PlayerState> = positions
+    // Build player list (6-max)
+    let players: Vec<PlayerState> = POSITIONS_6MAX
         .iter()
         .enumerate()
         .map(|(i, &pos)| PlayerState {
@@ -132,7 +124,7 @@ pub fn generate_open<R: Rng>(
 
     let bb = 2u32;
     let (pot_size, current_bet, question, answers) =
-        build_spot(rng, spot, hero_pos, hero_cards, effective_stack, bb, difficulty, table_size, text_style);
+        build_spot(rng, spot, hero_pos, hero_cards, effective_stack, bb, difficulty, text_style);
 
     let table_setup = TableSetup {
         game_type: GameType::CashGame,
@@ -162,7 +154,6 @@ fn build_spot<R: Rng>(
     stack: u32,
     bb: u32,
     _difficulty: DifficultyLevel,
-    table_size: usize,
     text_style: TextStyle,
 ) -> (u32, u32, String, Vec<AnswerOption>) {
     let cat = classify_hand(hand);
@@ -178,11 +169,11 @@ fn build_spot<R: Rng>(
             let open_size = if stack_bb >= 40 { bb * 3 } else { bb * 2 };
             let q = match text_style {
                 TextStyle::Simple => format!(
-                    "You have {hand_str} in {pos_str} at a {table_size}-handed table. \
+                    "You have {hand_str} in {pos_str} at a 6-handed table. \
                      Stack: {stack_bb} big blinds. Everyone before you folded. What do you do?"
                 ),
                 TextStyle::Technical => format!(
-                    "You hold {hand_str} in {pos_str} at a {table_size}-handed table. \
+                    "You hold {hand_str} in {pos_str} at a 6-handed table. \
                      Effective stack is {stack_bb} BB. Action folds to you. What is your action?"
                 ),
             };
